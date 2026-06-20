@@ -230,7 +230,7 @@ export default function FashionInventoryApp() {
   const ADMIN_PASSWORD = 'Admin55555';
 
   const operatorEmails = [
-    'operator@gmail.com'
+    'yass.mrts@gmail.com'
   ];
   const OPERATOR_PASSWORD = 'operator123';
 
@@ -1076,17 +1076,17 @@ export default function FashionInventoryApp() {
           </div>
 
           {/* Area Kertas yang akan dicetak */}
-          <div className="max-w-5xl mx-auto bg-white p-8 md:p-12 text-slate-900 print:max-w-none print:w-full print:p-0 print:m-0">
+          <div className="max-w-5xl mx-auto bg-white p-8 md:p-12 text-slate-900 print:max-w-none print:w-full print:p-6 print:m-0">
             
             {/* Header Surat */}
-            <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-8">
+            <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-8 print:break-inside-avoid">
               {/* Bagian Kiri: Logo & Kontak */}
               <div className="flex flex-col items-start gap-4">
                 {!logoError ? (
                   <img 
                     src="https://drive.google.com/thumbnail?id=1l9Q891y6gdH6vXnT-B9H3LlToKcagtmw&sz=w500" 
                     alt="Store Logo" 
-                    className="h-16 md:h-20 w-auto object-contain object-left drop-shadow-sm -ml-1"
+                    className="h-16 md:h-20 print:h-20 print:w-auto print:max-w-[280px] w-auto object-contain object-left drop-shadow-sm print:drop-shadow-none -ml-1 print:ml-0 print:block"
                     onError={() => setLogoError(true)}
                   />
                 ) : (
