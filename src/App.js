@@ -230,7 +230,7 @@ export default function FashionInventoryApp() {
   const ADMIN_PASSWORD = 'Admin55555';
 
   const operatorEmails = [
-    'yass.mrts@gmail.com'
+    'operator@gmail.com'
   ];
   const OPERATOR_PASSWORD = 'operator123';
 
