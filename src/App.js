@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Package, 
   Plus, 
@@ -16,8 +16,16 @@ import {
   ImagePlus,
   MapPin,
   Phone,
-  Mail
+  Mail,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  CreditCard,
+  Calendar,
+  DollarSign,
+  CheckCircle2
 } from 'lucide-react';
+
 import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -33,7 +41,6 @@ import {
   doc 
 } from 'firebase/firestore';
 
-// Konfigurasi Database Firebase Asli Milik Elrosamoda
 const firebaseConfig = {
   apiKey: "AIzaSyDVw6PYt7MyEF0Cx7IF_omsTxdvR2AgaUg",
   authDomain: "ra-invensys.firebaseapp.com",
@@ -47,16 +54,16 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Komponen Khusus untuk Papan Tanda Tangan Digital
 const SignaturePad = ({ title, subtitle, subtext }) => {
-  const canvasRef = React.useRef(null);
-  const [isDrawing, setIsDrawing] = React.useState(false);
-  const [hasDrawn, setHasDrawn] = React.useState(false);
+  const canvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [hasDrawn, setHasDrawn] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    ctx.strokeStyle = '#0f172a'; // Warna tinta (slate-900)
+    ctx.strokeStyle = '#0f172a';
     ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -128,7 +135,6 @@ const SignaturePad = ({ title, subtitle, subtext }) => {
           onTouchMove={draw}
           onTouchEnd={stopDrawing}
         ></canvas>
-        {/* Garis batas bawah tanda tangan */}
         <div className="absolute bottom-4 left-0 right-0 border-b border-slate-400 w-4/5 mx-auto pointer-events-none"></div>
       </div>
       <button 
@@ -144,7 +150,7 @@ const SignaturePad = ({ title, subtitle, subtext }) => {
   );
 };
 
-export default function FashionInventoryApp() {
+export default function App() {
   const [inventory, setInventory] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
@@ -157,6 +163,9 @@ export default function FashionInventoryApp() {
   const [loginInput, setLoginInput] = useState({ email: '', password: '' });
   
   const todayDate = new Date().toISOString().split('T')[0];
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 50;
 
   const generateSKU = (brand, category) => {
     const brandMap = {
@@ -172,14 +181,11 @@ export default function FashionInventoryApp() {
     const cPrefix = category.replace(/[^a-zA-Z0-9]/g, '').substring(0, 3).toUpperCase();
     const prefix = `${bPrefix}-${cPrefix}`;
     
-    // Cari semua barang dengan awalan prefix yang sama (misal: "GUC-BAG")
     const matchingItems = inventory.filter(item => 
       item.sku && item.sku.toUpperCase().startsWith(prefix)
     );
     
     let maxNumber = 0;
-    
-    // Cari angka terbesar dari yang sudah ada
     matchingItems.forEach(item => {
       const parts = item.sku.split('-');
       if (parts.length === 3) {
@@ -190,7 +196,6 @@ export default function FashionInventoryApp() {
       }
     });
     
-    // Tambah 1 dan format menjadi 4 digit angka (misal: 0001)
     const nextNumber = maxNumber + 1;
     const formattedNumber = String(nextNumber).padStart(4, '0');
     
@@ -216,11 +221,23 @@ export default function FashionInventoryApp() {
   const [editFormData, setEditFormData] = useState({});
   const [searchTerm, setSearchTerm] = useState("");
 
-  // State untuk fitur Print Dokumen (Batch)
   const [selectedItems, setSelectedItems] = useState([]);
   const [printItems, setPrintItems] = useState([]);
-  const [printType, setPrintType] = useState('IN'); // 'IN' atau 'OUT'
+  const [printType, setPrintType] = useState('IN');
   const [attachmentImages, setAttachmentImages] = useState([]);
+
+  // State Invoice & Instalment lanjutan
+  const [isInvoiceMode, setIsInvoiceMode] = useState(false);
+  const [paymentType, setPaymentType] = useState('full'); // 'full' atau 'instalment'
+  const [selectedTermIndex, setSelectedTermIndex] = useState('DP'); // 'DP' atau nomor indeks cicilan (0, 1, 2, ...)
+  const [invoiceDetails, setInvoiceDetails] = useState({
+    buyerName: '',
+    buyerPhone: '',
+    buyerAddress: '',
+    downPayment: '',
+    tenorMonths: '3',
+    dueDateFirst: todayDate
+  });
 
   const adminEmails = [
     'elutaro.ai@gmail.com',
@@ -269,7 +286,7 @@ export default function FashionInventoryApp() {
         ...doc.data()
       }));
       
-      items.sort((a, b) => b.createdAt - a.createdAt);
+      items.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       setInventory(items);
       setIsLoading(false);
     }, (error) => {
@@ -320,6 +337,13 @@ export default function FashionInventoryApp() {
     return new Intl.DateTimeFormat('en-GB', { 
       day: 'numeric', month: 'short', year: 'numeric' 
     }).format(date);
+  };
+
+  const addMonthsToDateString = (dateStr, monthsToAdd) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    d.setMonth(d.getMonth() + monthsToAdd);
+    return d.toISOString().split('T')[0];
   };
 
   const getStatusColor = (status) => {
@@ -395,6 +419,7 @@ export default function FashionInventoryApp() {
         stock: '', price: '', modalPrice: '', owner: '', ownerPhone: '', status: 'In' 
       });
       setIsAdding(false);
+      setCurrentPage(1);
     } catch (error) {
       console.error("Failed to add item:", error);
       setErrorMsg("Failed to save: " + error.message);
@@ -480,6 +505,11 @@ export default function FashionInventoryApp() {
     );
   });
 
+  const totalPages = Math.ceil(filteredInventory.length / itemsPerPage) || 1;
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredInventory.slice(indexOfFirstItem, indexOfLastItem);
+
   const handleSelectAll = () => {
     if (selectedItems.length === filteredInventory.length) {
       setSelectedItems([]);
@@ -506,7 +536,6 @@ export default function FashionInventoryApp() {
     }
 
     const headers = ['No', 'Date In', 'Date Out', 'Item Code', 'Brand', 'Item Name', 'Category', 'Stock', 'Modal Price', 'Selling Price', 'Profit', 'Owner', 'Owner Phone', 'Status'];
-
     const csvRows = [headers.join(',')];
 
     filteredInventory.forEach((item, index) => {
@@ -527,7 +556,6 @@ export default function FashionInventoryApp() {
         `"${item.ownerPhone || ''}"`,
         `"${item.status || ''}"`
       ];
-
       csvRows.push(row.join(','));
     });
 
@@ -579,7 +607,6 @@ export default function FashionInventoryApp() {
 
   return (
     <>
-      {/* Tampilan utama disembunyikan (print:hidden) saat mode print aktif agar tidak tumpang tindih */}
       <div className={`min-h-screen bg-gray-50 text-slate-800 font-sans p-4 xl:p-8 ${printItems && printItems.length > 0 ? 'print:hidden' : ''}`}>
         <div className="w-full mx-auto space-y-6">
           
@@ -733,24 +760,45 @@ export default function FashionInventoryApp() {
                   className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Search brand, name, category, or owner..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
                 />
               </div>
               
-              <div className="flex w-full xl:w-auto gap-3">
+              <div className="flex flex-wrap w-full xl:w-auto gap-3">
                 {selectedItems.length > 0 && (
-                  <button
-                    onClick={() => {
-                      const itemsToPrint = inventory.filter(i => selectedItems.includes(i.id));
-                      setPrintItems(itemsToPrint);
-                      setPrintType('IN');
-                      setAttachmentImages([]);
-                    }}
-                    className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-colors bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
-                  >
-                    <Printer size={20} />
-                    Cetak Terpilih ({selectedItems.length})
-                  </button>
+                  <>
+                    <button
+                      onClick={() => {
+                        const itemsToPrint = inventory.filter(i => selectedItems.includes(i.id));
+                        setPrintItems(itemsToPrint);
+                        setPrintType('IN');
+                        setIsInvoiceMode(false);
+                        setAttachmentImages([]);
+                      }}
+                      className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-colors bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+                    >
+                      <Printer size={18} />
+                      Cetak Surat ({selectedItems.length})
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        const itemsToPrint = inventory.filter(i => selectedItems.includes(i.id));
+                        setPrintItems(itemsToPrint);
+                        setIsInvoiceMode(true);
+                        setPaymentType('full');
+                        setSelectedTermIndex('DP');
+                        setAttachmentImages([]);
+                      }}
+                      className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-colors bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm"
+                    >
+                      <FileText size={18} />
+                      Buat Invoice ({selectedItems.length})
+                    </button>
+                  </>
                 )}
 
                 {isAdmin && (
@@ -831,6 +879,7 @@ export default function FashionInventoryApp() {
                     <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Selling Price</label>
                     <input required type="number" min="0" placeholder="15000000" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" value={newItem.price} onChange={(e) => setNewItem({...newItem, price: e.target.value})} />
                   </div>
+                  
                   <div className="lg:col-span-2 grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Owner Name</label>
@@ -841,6 +890,7 @@ export default function FashionInventoryApp() {
                       <input type="tel" placeholder="081234..." className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" value={newItem.ownerPhone} onChange={(e) => setNewItem({...newItem, ownerPhone: e.target.value})} />
                     </div>
                   </div>
+
                   <div className={isAdmin ? "" : "xl:col-span-2"}>
                     <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Status</label>
                     <div className="flex gap-2">
@@ -884,20 +934,22 @@ export default function FashionInventoryApp() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-sm">
-                  {filteredInventory.length === 0 ? (
+                  {currentItems.length === 0 ? (
                     <tr>
                       <td colSpan={isAdmin ? "14" : "12"} className="p-8 text-center text-gray-400">
                         {searchTerm ? 'No items found matching your search.' : 'No items in inventory. Click "Add New Item" to start.'}
                       </td>
                     </tr>
                   ) : (
-                    filteredInventory.map((item, index) => (
+                    currentItems.map((item, index) => {
+                      const absoluteIndex = indexOfFirstItem + index;
+                      return (
                       <tr key={item.id} className={`hover:bg-gray-50/50 transition-colors group ${selectedItems.includes(item.id) ? 'bg-indigo-50/30' : ''}`}>
                         
                         {editingId === item.id && canEdit ? (
                           <>
                             <td className="p-3 text-center"></td>
-                            <td className="p-3 text-center text-gray-400 font-medium">{index + 1}</td>
+                            <td className="p-3 text-center text-gray-400 font-medium">{absoluteIndex + 1}</td>
                             <td className="p-2">
                               <input type="date" className="w-32 p-1.5 border border-indigo-300 rounded focus:ring-1 focus:ring-indigo-500 text-xs" value={editFormData.date} onChange={(e) => setEditFormData({...editFormData, date: e.target.value})} />
                             </td>
@@ -968,7 +1020,7 @@ export default function FashionInventoryApp() {
                                 onChange={() => handleSelect(item.id)}
                               />
                             </td>
-                            <td className="p-3 text-center text-gray-400 font-medium">{index + 1}</td>
+                            <td className="p-3 text-center text-gray-400 font-medium">{absoluteIndex + 1}</td>
                             <td className="p-3 text-slate-600">{formatDateDisplay(item.date)}</td>
                             <td className="p-3 text-slate-600">{formatDateDisplay(item.dateOut)}</td>
                             <td className="p-3 font-mono text-xs font-medium text-indigo-600">{item.sku || '-'}</td>
@@ -1000,7 +1052,7 @@ export default function FashionInventoryApp() {
                             <td className="p-3">
                               <div className="flex flex-col">
                                 <span className="text-slate-800 font-medium max-w-[120px] truncate" title={item.owner}>{item.owner || '-'}</span>
-                                {item.ownerPhone && (
+                                {isAdmin && item.ownerPhone && (
                                   <a 
                                     href={`https://wa.me/${item.ownerPhone.replace(/[^0-9]/g, '').replace(/^0/, '62')}`} 
                                     target="_blank" 
@@ -1020,11 +1072,25 @@ export default function FashionInventoryApp() {
                                 </span>
 
                                 <div className="flex items-center gap-1 opacity-100 xl:opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button onClick={() => {
-                                    setPrintItems([item]);
-                                    setPrintType(item.status === 'In' ? 'IN' : 'OUT');
-                                    setAttachmentImages([]);
-                                  }} className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-md" title="Print Document"><Printer size={16} /></button>
+                                  {canAdd && (
+                                    <>
+                                      <button onClick={() => {
+                                        setPrintItems([item]);
+                                        setPrintType(item.status === 'In' ? 'IN' : 'OUT');
+                                        setIsInvoiceMode(false);
+                                        setAttachmentImages([]);
+                                      }} className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-md" title="Print Document"><Printer size={16} /></button>
+                                      
+                                      <button onClick={() => {
+                                        setPrintItems([item]);
+                                        setIsInvoiceMode(true);
+                                        setPaymentType('full');
+                                        setSelectedTermIndex('DP');
+                                        setAttachmentImages([]);
+                                      }} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md" title="Buat Invoice"><FileText size={16} /></button>
+                                    </>
+                                  )}
+
                                   {canEdit && (
                                     <>
                                       <button onClick={() => startEdit(item)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md" title="Edit Item"><Edit2 size={16} /></button>
@@ -1037,20 +1103,45 @@ export default function FashionInventoryApp() {
                           </>
                         )}
                       </tr>
-                    ))
+                    );})
                   )}
                 </tbody>
               </table>
             </div>
+
+            {totalPages > 1 && (
+              <div className="p-4 bg-white border-t border-gray-100 flex items-center justify-between">
+                <p className="text-sm text-gray-500">
+                  Menampilkan <span className="font-semibold">{indexOfFirstItem + 1}</span> - <span className="font-semibold">{Math.min(indexOfLastItem, filteredInventory.length)}</span> dari <span className="font-semibold">{filteredInventory.length}</span> data
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
+                  >
+                    <ChevronLeft size={16} /> Sebelumnya
+                  </button>
+                  <span className="text-sm font-semibold text-slate-700 px-3 py-1 bg-slate-100 rounded-lg">
+                    Frame {currentPage} dari {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
+                  >
+                    Berikutnya <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
       </div>
 
-      {/* --- MODAL PRINT DOKUMEN --- */}
-      {printItems && printItems.length > 0 && (
+      {printItems && printItems.length > 0 && !isInvoiceMode && (
         <div className="fixed inset-0 z-[100] bg-white overflow-y-auto print:static print:overflow-visible print:bg-white text-slate-800 font-sans">
-          
-          {/* Tombol Kontrol (Tidak akan ikut tercetak karena class print:hidden) */}
           <div className="print:hidden sticky top-0 bg-slate-50 border-b border-slate-200 p-4 px-8 flex flex-wrap gap-4 items-center justify-between shadow-sm z-10">
             <div className="flex items-center gap-4">
               <button onClick={() => setPrintItems([])} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 font-medium">
@@ -1075,12 +1166,8 @@ export default function FashionInventoryApp() {
             </div>
           </div>
 
-          {/* Area Kertas yang akan dicetak */}
           <div className="max-w-5xl mx-auto bg-white p-8 md:p-12 text-slate-900 print:max-w-none print:w-full print:p-6 print:m-0">
-            
-            {/* Header Surat */}
             <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-8 print:break-inside-avoid">
-              {/* Bagian Kiri: Logo & Kontak */}
               <div className="flex flex-col items-start gap-4">
                 {!logoError ? (
                   <img 
@@ -1091,12 +1178,11 @@ export default function FashionInventoryApp() {
                   />
                 ) : (
                   <div>
-                    <h1 className="text-3xl font-black tracking-tight text-slate-900">ELROSAMODA</h1>
+                    <h1 className="text-3xl font-black tracking-tight text-slate-900">ROSAMODA</h1>
                     <p className="text-sm text-slate-500 font-medium mt-1">Luxury Fashion Consignment</p>
                   </div>
                 )}
 
-                {/* Info Kontak Persis Seperti Gambar (Dipindah ke bawah logo) */}
                 <div className="flex flex-col gap-2.5 mt-2">
                   <div className="flex items-start gap-3 w-72 justify-start">
                     <div className="bg-[#e2c473] text-white p-1 rounded-full shrink-0 mt-0.5">
@@ -1122,7 +1208,6 @@ export default function FashionInventoryApp() {
                 </div>
               </div>
 
-              {/* Bagian Kanan: Judul Dokumen */}
               <div className="text-right flex flex-col items-end">
                 <h2 className="text-2xl font-bold text-slate-800 uppercase tracking-wide">
                   {printType === 'IN' ? 'CONSIGNMENT RECEIPT' : 'CONSIGNMENT RETURN'}
@@ -1133,12 +1218,13 @@ export default function FashionInventoryApp() {
               </div>
             </div>
 
-            {/* Informasi Pemilik (Diambil dari barang pertama) */}
             <div className="mb-8 grid grid-cols-2 gap-8 bg-slate-50 p-4 rounded-lg border border-slate-200">
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Owner Information</h3>
                 <p className="text-lg font-bold text-slate-900">{printItems[0]?.owner || 'N/A'}</p>
-                <p className="text-slate-600 font-medium">{printItems[0]?.ownerPhone || '-'}</p>
+                {isAdmin && (
+                  <p className="text-slate-600 font-medium">{printItems[0]?.ownerPhone || '-'}</p>
+                )}
               </div>
               <div className="text-right">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Total Items</h3>
@@ -1146,7 +1232,6 @@ export default function FashionInventoryApp() {
               </div>
             </div>
 
-            {/* Tabel Daftar Barang */}
             <div className="mb-8">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 mb-4 border-b-2 border-slate-200 pb-2">Item List</h3>
               <table className="w-full text-left border-collapse text-sm">
@@ -1182,7 +1267,6 @@ export default function FashionInventoryApp() {
               </table>
             </div>
 
-            {/* Foto Lampiran */}
             <div className="mb-12">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 mb-4 border-b-2 border-slate-200 pb-2">Photo Attachments</h3>
               {attachmentImages.length > 0 ? (
@@ -1201,14 +1285,13 @@ export default function FashionInventoryApp() {
                   ))}
                 </div>
               ) : (
-                <div className="w-full h-32 border-2 border-dashed border-slate-300 rounded-xl flex items-center justify-center bg-slate-50 text-slate-400 print:border-solid print:h-48">
+                <div className="w-full h-32 border-2 border-dashed border-slate-300 rounded-xl flex items-center justify-center bg-gray-50 text-slate-400 print:border-solid print:h-48">
                   <span className="print:hidden">Klik 'Upload Foto Bukti' di atas untuk melampirkan banyak foto sekaligus.</span>
                   <span className="hidden print:block text-slate-300">(Photo Attachments Area)</span>
                 </div>
               )}
             </div>
 
-            {/* Kolom Tanda Tangan */}
             <div className="grid grid-cols-2 gap-8 mt-16 pt-8 border-t border-slate-200 page-break-inside-avoid">
               <SignaturePad 
                 title="Store Admin" 
@@ -1217,7 +1300,386 @@ export default function FashionInventoryApp() {
               <SignaturePad 
                 title="Consignor / Owner" 
                 subtitle={printItems[0]?.owner || 'Owner'} 
-                subtext={printItems[0]?.ownerPhone || ''}
+                subtext={isAdmin ? (printItems[0]?.ownerPhone || '') : ''}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL INVOICE CUSTOM (Full Payment / Instalment dengan Pemilihan Cicilan Ke-X) --- */}
+      {printItems && printItems.length > 0 && isInvoiceMode && (
+        <div className="fixed inset-0 z-[100] bg-white overflow-y-auto print:static print:overflow-visible print:bg-white text-slate-800 font-sans">
+          
+          <div className="print:hidden sticky top-0 bg-slate-50 border-b border-slate-200 p-4 px-8 flex flex-wrap gap-4 items-center justify-between shadow-sm z-10">
+            <div className="flex items-center gap-4">
+              <button onClick={() => setPrintItems([])} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 font-medium">
+                <X size={18} /> Tutup
+              </button>
+              
+              <div className="flex items-center gap-2 bg-white p-1 rounded-lg border border-slate-300">
+                <button 
+                  onClick={() => { setPaymentType('full'); setSelectedTermIndex('DP'); }} 
+                  className={`px-4 py-1.5 rounded-md text-sm font-bold transition-colors flex items-center gap-1.5 ${paymentType === 'full' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                >
+                  <CreditCard size={16} /> 1. Full Payment
+                </button>
+                <button 
+                  onClick={() => { setPaymentType('instalment'); setSelectedTermIndex('DP'); }} 
+                  className={`px-4 py-1.5 rounded-md text-sm font-bold transition-colors flex items-center gap-1.5 ${paymentType === 'instalment' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                >
+                  <Calendar size={16} /> 2. Instalment (Cicilan)
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-lg font-medium cursor-pointer transition-colors">
+                <ImagePlus size={18} />
+                <span>Upload Foto Bukti</span>
+                <input type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
+              </label>
+              
+              <button onClick={handlePrint} className="flex items-center gap-2 px-6 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 font-bold transition-colors shadow-md">
+                <Printer size={18} /> Cetak Invoice
+              </button>
+            </div>
+          </div>
+
+          <div className="max-w-5xl mx-auto bg-white p-8 md:p-12 text-slate-900 print:max-w-none print:w-full print:p-6 print:m-0">
+            
+            {/* Form Input Data Pembeli & Pemilihan Termin Pembayaran (Disembunyikan saat dicetak) */}
+            <div className="print:hidden mb-8 bg-indigo-50/60 p-5 rounded-xl border border-indigo-100 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Pembeli (Customer)</label>
+                  <input 
+                    type="text" 
+                    placeholder="Nama Lengkap Pembeli" 
+                    className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm"
+                    value={invoiceDetails.buyerName}
+                    onChange={(e) => setInvoiceDetails({...invoiceDetails, buyerName: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">No. Telepon / WhatsApp</label>
+                  <input 
+                    type="tel" 
+                    placeholder="08123456789" 
+                    className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm"
+                    value={invoiceDetails.buyerPhone}
+                    onChange={(e) => setInvoiceDetails({...invoiceDetails, buyerPhone: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Alamat Pengiriman</label>
+                  <input 
+                    type="text" 
+                    placeholder="Kota / Alamat Singkat" 
+                    className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm"
+                    value={invoiceDetails.buyerAddress}
+                    onChange={(e) => setInvoiceDetails({...invoiceDetails, buyerAddress: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              {paymentType === 'instalment' && (
+                <div className="pt-3 border-t border-indigo-200 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Uang Muka / DP (Rp)</label>
+                    <input 
+                      type="number" 
+                      placeholder="Contoh: 2000000" 
+                      className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm"
+                      value={invoiceDetails.downPayment}
+                      onChange={(e) => setInvoiceDetails({...invoiceDetails, downPayment: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Tenor Cicilan</label>
+                    <select 
+                      className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm"
+                      value={invoiceDetails.tenorMonths}
+                      onChange={(e) => setInvoiceDetails({...invoiceDetails, tenorMonths: e.target.value})}
+                    >
+                      <option value="2">2 Bulan</option>
+                      <option value="3">3 Bulan</option>
+                      <option value="6">6 Bulan</option>
+                      <option value="12">12 Bulan</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Jatuh Tempo Cicilan 1</label>
+                    <input 
+                      type="date" 
+                      className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm"
+                      value={invoiceDetails.dueDateFirst}
+                      onChange={(e) => setInvoiceDetails({...invoiceDetails, dueDateFirst: e.target.value})}
+                    />
+                  </div>
+                  
+                  {/* Pilihan Termin yang Ingin Dicetak (DP atau Cicilan ke-1, ke-2, dst) */}
+                  <div className="md:col-span-3 bg-white p-3 rounded-lg border border-indigo-200 flex flex-col md:flex-row items-center justify-between gap-3">
+                    <span className="text-xs font-bold uppercase text-slate-700">Pilih Invoice Termin Pembayaran yang Dicetak:</span>
+                    <div className="flex flex-wrap gap-2">
+                      <button 
+                        type="button" 
+                        onClick={() => setSelectedTermIndex('DP')}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${selectedTermIndex === 'DP' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                      >
+                        Uang Muka (DP)
+                      </button>
+                      {Array.from({ length: parseInt(invoiceDetails.tenorMonths) || 3 }).map((_, idx) => (
+                        <button 
+                          key={idx}
+                          type="button" 
+                          onClick={() => setSelectedTermIndex(idx)}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${selectedTermIndex === idx ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                        >
+                          Cicilan ke-{idx + 1}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Header Invoice */}
+            <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-8 print:break-inside-avoid">
+              <div className="flex flex-col items-start gap-4">
+                {!logoError ? (
+                  <img 
+                    src="https://drive.google.com/thumbnail?id=1l9Q891y6gdH6vXnT-B9H3LlToKcagtmw&sz=w500" 
+                    alt="Store Logo" 
+                    className="h-16 md:h-20 print:h-20 print:w-auto print:max-w-[280px] w-auto object-contain object-left drop-shadow-sm print:drop-shadow-none -ml-1 print:ml-0 print:block"
+                    onError={() => setLogoError(true)}
+                  />
+                ) : (
+                  <div>
+                    <h1 className="text-3xl font-black tracking-tight text-slate-900">ROSAMODA</h1>
+                    <p className="text-sm text-slate-500 font-medium mt-1">Luxury Fashion Consignment</p>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-2.5 mt-2">
+                  <div className="flex items-start gap-3 w-72 justify-start">
+                    <div className="bg-[#e2c473] text-white p-1 rounded-full shrink-0 mt-0.5">
+                      <MapPin size={14} strokeWidth={2.5} />
+                    </div>
+                    <span className="text-left font-serif text-[15px] leading-tight text-slate-800">
+                      Melawai Plaza, Lt.1 No.232-G<br/>
+                      Melawai, Keb.Baru. Jakarta Selatan
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 w-72 justify-start">
+                    <div className="bg-[#e2c473] text-white p-1 rounded-full shrink-0">
+                      <Phone size={14} strokeWidth={2.5} />
+                    </div>
+                    <span className="text-left font-serif text-[15px] text-slate-800">+6289 5603 858789</span>
+                  </div>
+                  <div className="flex items-center gap-3 w-72 justify-start">
+                    <div className="bg-[#e2c473] text-white p-1 rounded-full shrink-0">
+                      <Mail size={14} strokeWidth={2.5} />
+                    </div>
+                    <span className="text-left font-serif text-[15px] text-slate-800">elrosamoda@gmail.co.id</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-right flex flex-col items-end">
+                <h2 className="text-2xl font-black text-slate-900 uppercase tracking-wide">
+                  {paymentType === 'full' ? 'SALES INVOICE' : (selectedTermIndex === 'DP' ? 'INVOICE - UANG MUKA (DP)' : `INVOICE - CICILAN KE-${selectedTermIndex + 1}`)}
+                </h2>
+                <div className="mt-2 text-sm text-slate-600 space-y-0.5">
+                  <p><span className="font-bold">No. Invoice:</span> INV-{Date.now().toString().slice(-6)}-{paymentType === 'full' ? 'FULL' : (selectedTermIndex === 'DP' ? 'DP' : `C${selectedTermIndex + 1}`)}</p>
+                  <p><span className="font-bold">Tanggal Cetak:</span> {formatDateDisplay(todayDate)}</p>
+                  <p><span className="font-bold">Tipe Pembayaran:</span> <span className="uppercase text-indigo-700 font-bold">{paymentType === 'full' ? 'Full Payment' : `Instalment (${invoiceDetails.tenorMonths} Bulan)`}</span></p>
+                </div>
+              </div>
+            </div>
+
+            {/* Info Pembeli & Toko */}
+            <div className="mb-8 grid grid-cols-2 gap-8 bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Billed To (Pembeli):</h3>
+                <p className="text-base font-bold text-slate-900">{invoiceDetails.buyerName || '(Nama Pembeli Belum Diisi)'}</p>
+                <p className="text-sm text-slate-700">{invoiceDetails.buyerPhone || '-'}</p>
+                <p className="text-sm text-slate-600">{invoiceDetails.buyerAddress || '-'}</p>
+              </div>
+              <div className="text-right">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Status Termin</h3>
+                <p className="text-base font-bold text-indigo-700">
+                  {paymentType === 'full' ? 'LUNAS (Paid in Full)' : (selectedTermIndex === 'DP' ? 'PEMBAYARAN UANG MUKA (DP)' : `TAGIHAN CICILAN KE-${selectedTermIndex + 1} dari ${invoiceDetails.tenorMonths}`)}
+                </p>
+                <p className="text-xs text-slate-500 mt-1">Authorized by Elrosamoda Store</p>
+              </div>
+            </div>
+
+            {/* Tabel Barang yang Dibeli */}
+            <div className="mb-8">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 mb-4 border-b-2 border-slate-200 pb-2">Purchased Items</h3>
+              <table className="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr className="bg-slate-100 text-slate-700">
+                    <th className="p-3 font-semibold border-b border-slate-200 w-12">No</th>
+                    <th className="p-3 font-semibold border-b border-slate-200">SKU</th>
+                    <th className="p-3 font-semibold border-b border-slate-200">Item Name & Brand</th>
+                    <th className="p-3 font-semibold border-b border-slate-200 text-center">Qty</th>
+                    <th className="p-3 font-semibold border-b border-slate-200 text-right">Unit Price</th>
+                    <th className="p-3 font-semibold border-b border-slate-200 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {printItems.map((item, idx) => {
+                    const itemTotal = (Number(item.stock) || 1) * (Number(item.price) || 0);
+                    return (
+                      <tr key={item.id}>
+                        <td className="p-3 text-slate-500">{idx + 1}</td>
+                        <td className="p-3 font-mono font-medium text-indigo-700">{item.sku}</td>
+                        <td className="p-3">
+                          <div className="font-bold text-slate-900">{item.name}</div>
+                          <div className="text-xs text-slate-500">{item.brand} ({item.category})</div>
+                        </td>
+                        <td className="p-3 text-center text-slate-700 font-semibold">{item.stock || 1}</td>
+                        <td className="p-3 text-right text-slate-700">{formatRupiah(item.price)}</td>
+                        <td className="p-3 text-right font-bold text-slate-900">{formatRupiah(itemTotal)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Perhitungan Nominal & Rincian Termin Terpilih */}
+            {(() => {
+              const grandTotal = printItems.reduce((sum, item) => sum + ((Number(item.stock) || 1) * (Number(item.price) || 0)), 0);
+              const dp = Number(invoiceDetails.downPayment) || 0;
+              const tenor = parseInt(invoiceDetails.tenorMonths) || 3;
+              const remainingBalance = Math.max(0, grandTotal - dp);
+              const monthlyInstallment = Math.round(remainingBalance / tenor);
+
+              // Tentukan nominal tagihan untuk invoice yang sedang aktif dicetak
+              let currentTermAmount = grandTotal;
+              let currentDueDate = todayDate;
+
+              if (paymentType === 'instalment') {
+                if (selectedTermIndex === 'DP') {
+                  currentTermAmount = dp;
+                  currentDueDate = todayDate;
+                } else {
+                  currentTermAmount = monthlyInstallment;
+                  currentDueDate = addMonthsToDateString(invoiceDetails.dueDateFirst, selectedTermIndex);
+                }
+              }
+
+              return (
+                <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-6 rounded-xl border border-slate-200">
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Informasi Rekening Pembayaran</h4>
+                    <div className="text-sm text-slate-700 space-y-1">
+                      <p><span className="font-bold">Bank BCA:</span> 5425-XXXX-XX (a.n. Elrosamoda)</p>
+                      <p><span className="font-bold">Bank Mandiri:</span> 1270-XXXX-XX (a.n. Elrosamoda)</p>
+                      <p className="text-xs text-slate-500 mt-2">Harap sertakan bukti transfer setelah pembayaran dilakukan.</p>
+                    </div>
+
+                    {paymentType === 'instalment' && (
+                      <div className="mt-4 pt-4 border-t border-slate-200">
+                        <p className="text-xs font-bold uppercase text-slate-600 mb-2">Jadwal Seluruh Cicilan:</p>
+                        <div className="space-y-1 text-xs text-slate-700">
+                          <div className={`flex justify-between p-1.5 rounded ${selectedTermIndex === 'DP' ? 'bg-indigo-100 font-bold text-indigo-900' : 'bg-white'}`}>
+                            <span>Uang Muka (DP):</span>
+                            <span>{formatRupiah(dp)}</span>
+                          </div>
+                          {Array.from({ length: tenor }).map((_, idx) => {
+                            const dueD = addMonthsToDateString(invoiceDetails.dueDateFirst, idx);
+                            const isSelected = selectedTermIndex === idx;
+                            return (
+                              <div key={idx} className={`flex justify-between p-1.5 rounded ${isSelected ? 'bg-indigo-100 font-bold text-indigo-900' : 'bg-white'}`}>
+                                <span>Cicilan ke-{idx + 1} ({formatDateDisplay(dueD)}):</span>
+                                <span>{formatRupiah(monthlyInstallment)}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between text-slate-600">
+                        <span>Total Belanja Keseluruhan:</span>
+                        <span className="font-bold text-slate-900">{formatRupiah(grandTotal)}</span>
+                      </div>
+
+                      {paymentType === 'instalment' && (
+                        <>
+                          <div className="flex justify-between text-slate-600">
+                            <span>Total Uang Muka (DP):</span>
+                            <span className="font-medium text-slate-700">{formatRupiah(dp)}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-600 pb-2 border-b border-slate-200">
+                            <span>Sisa Pokok Hutang:</span>
+                            <span className="font-medium text-slate-700">{formatRupiah(remainingBalance)}</span>
+                          </div>
+                        </>
+                      )}
+
+                      <div className="bg-indigo-50 p-4 rounded-xl mt-2 border border-indigo-200 space-y-1">
+                        <p className="text-xs font-bold uppercase text-indigo-700">Tagihan Invoice Ini:</p>
+                        <div className="flex justify-between items-center text-base font-black text-indigo-900">
+                          <span>{paymentType === 'full' ? 'Nominal Lunas:' : (selectedTermIndex === 'DP' ? 'Nominal DP:' : `Nominal Cicilan ke-${selectedTermIndex + 1}:`)}</span>
+                          <span className="text-lg text-indigo-600">{formatRupiah(currentTermAmount)}</span>
+                        </div>
+                        {paymentType === 'instalment' && (
+                          <p className="text-xs font-semibold text-red-600 pt-1">
+                            • Jatuh Tempo Termin Ini: {formatDateDisplay(currentDueDate)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Foto Lampiran */}
+            <div className="mb-12">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 mb-4 border-b-2 border-slate-200 pb-2">Photo & Notes</h3>
+              {attachmentImages.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {attachmentImages.map((imgSrc, idx) => (
+                    <div key={idx} className="border border-slate-200 rounded-lg p-2 flex items-center justify-center bg-slate-50 relative group">
+                      <img src={imgSrc} alt={`Bukti ${idx+1}`} className="max-h-48 object-contain rounded" />
+                      <button 
+                        onClick={() => setAttachmentImages(prev => prev.filter((_, i) => i !== idx))}
+                        className="print:hidden absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                        title="Hapus Foto"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="w-full h-24 border-2 border-dashed border-slate-300 rounded-xl flex items-center justify-center bg-gray-50 text-slate-400 print:border-solid print:h-32">
+                  <span className="print:hidden">Klik 'Upload Foto Bukti' di atas untuk melampirkan foto nota/transfer.</span>
+                  <span className="hidden print:block text-slate-300">(Receipt / Transfer Proof Area)</span>
+                </div>
+              )}
+            </div>
+
+            {/* Kolom Tanda Tangan */}
+            <div className="grid grid-cols-2 gap-8 mt-16 pt-8 border-t border-slate-200 page-break-inside-avoid">
+              <SignaturePad 
+                title="Store Authorized" 
+                subtitle="Elrosamoda Store" 
+              />
+              <SignaturePad 
+                title="Customer / Pembeli" 
+                subtitle={invoiceDetails.buyerName || 'Nama Pembeli'} 
+                subtext={invoiceDetails.buyerPhone || ''}
               />
             </div>
 
