@@ -1578,9 +1578,11 @@ export default function App() {
                   <div>
                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Informasi Rekening Pembayaran</h4>
                     <div className="text-sm text-slate-700 space-y-1">
-                      <p><span className="font-bold">Bank BCA:</span> 5425-XXXX-XX (a.n. Elrosamoda)</p>
-                      <p><span className="font-bold">Bank Mandiri:</span> 1270-XXXX-XX (a.n. Elrosamoda)</p>
+                      <p><span className="font-bold">Bank BCA:</span> 002-174-6753 (a.n. Elis Rosalina Rais)</p>
+                      <p><span className="font-bold">Bank BNI:</span> 203-1986-489 (a.n. Adityas Shafrani)</p>
                       <p className="text-xs text-slate-500 mt-2">Harap sertakan bukti transfer setelah pembayaran dilakukan.</p>
+                      <p className="text-xs text-slate-500 mt-2">Wajib bayar tepat pada waktu yang sudah ditentukan.</p>
+                
                     </div>
 
                     {paymentType === 'instalment' && (
