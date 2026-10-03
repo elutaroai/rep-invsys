@@ -22,8 +22,8 @@ import {
   FileText,
   CreditCard,
   Calendar,
-  DollarSign,
-  CheckCircle2
+  LogOut,
+  Lock
 } from 'lucide-react';
 
 import { initializeApp } from 'firebase/app';
@@ -119,7 +119,7 @@ const SignaturePad = ({ title, subtitle, subtext }) => {
       <div className="relative border-2 border-slate-200 border-dashed rounded-xl bg-slate-50 print:border-none print:bg-transparent overflow-hidden">
         {!hasDrawn && (
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-40 print:hidden">
-            <span className="text-sm font-medium">Tanda Tangan di Sini</span>
+            <span className="text-sm font-medium">Sign Here</span>
           </div>
         )}
         <canvas
@@ -142,7 +142,7 @@ const SignaturePad = ({ title, subtitle, subtext }) => {
         onClick={clearCanvas} 
         className="mt-3 text-xs text-red-500 hover:text-red-700 print:hidden flex items-center gap-1 font-medium bg-red-50 px-2.5 py-1.5 rounded-md transition-colors"
       >
-        <X size={14} /> Hapus
+        <X size={14} /> Clear
       </button>
       <p className="mt-2 text-sm text-slate-800 font-bold">{subtitle}</p>
       {subtext && <p className="mt-0.5 text-xs text-slate-500">{subtext}</p>}
@@ -158,7 +158,7 @@ export default function App() {
   const [isAdding, setIsAdding] = useState(false);
   const [logoError, setLogoError] = useState(false);
   
-  const [showLoginModal, setShowLoginModal] = useState(false);
+  // Mandatory Login at the beginning
   const [loggedInEmail, setLoggedInEmail] = useState("");
   const [loginInput, setLoginInput] = useState({ email: '', password: '' });
   
@@ -226,10 +226,10 @@ export default function App() {
   const [printType, setPrintType] = useState('IN');
   const [attachmentImages, setAttachmentImages] = useState([]);
 
-  // State Invoice & Instalment lanjutan
+  // Invoice & Instalment States
   const [isInvoiceMode, setIsInvoiceMode] = useState(false);
-  const [paymentType, setPaymentType] = useState('full'); // 'full' atau 'instalment'
-  const [selectedTermIndex, setSelectedTermIndex] = useState('DP'); // 'DP' atau nomor indeks cicilan (0, 1, 2, ...)
+  const [paymentType, setPaymentType] = useState('full'); 
+  const [selectedTermIndex, setSelectedTermIndex] = useState('DP'); 
   const [invoiceDetails, setInvoiceDetails] = useState({
     buyerName: '',
     buyerPhone: '',
@@ -274,7 +274,7 @@ export default function App() {
 
   useEffect(() => {
     signInAnonymously(auth).catch(() => {
-      console.log("Menggunakan Test Mode Database.");
+      console.log("Using Database Test Mode.");
     });
   }, []);
 
@@ -291,7 +291,7 @@ export default function App() {
       setIsLoading(false);
     }, (error) => {
       console.error("Firestore Error:", error);
-      setErrorMsg("Gagal terhubung ke database. Pastikan koneksi internet stabil.");
+      setErrorMsg("Failed to connect to database. Please check your internet connection.");
       setIsLoading(false);
     });
 
@@ -307,19 +307,18 @@ export default function App() {
 
     if (adminEmails.includes(email) && pass === ADMIN_PASSWORD) {
       setLoggedInEmail(email);
-      setShowLoginModal(false);
       setLoginInput({ email: '', password: '' });
     } else if (operatorEmails.includes(email) && pass === OPERATOR_PASSWORD) {
       setLoggedInEmail(email);
-      setShowLoginModal(false);
       setLoginInput({ email: '', password: '' });
     } else {
-      setErrorMsg("Email atau Password salah.");
+      setErrorMsg("Invalid Email or Password. Please ensure your account is registered.");
     }
   };
 
   const handleLogout = async () => {
     setLoggedInEmail("");
+    setSelectedItems([]);
   };
 
   const formatRupiah = (number) => {
@@ -348,10 +347,10 @@ export default function App() {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'In': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-      case 'Sold at Store': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'Sold by online': return 'bg-purple-100 text-purple-800 border-purple-200';
-      case 'Returned to owner': return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 'In': return 'bg-white text-slate-800 border-slate-300';
+      case 'Sold at Store': return 'bg-[#d4af37] text-white border-[#c5a028] shadow-sm';
+      case 'Sold by online': return 'bg-slate-900 text-white border-slate-900 shadow-sm';
+      case 'Returned to owner': return 'bg-slate-100 text-slate-500 border-slate-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
@@ -364,7 +363,7 @@ export default function App() {
 
   const handlePrint = () => {
     if (window.self !== window.top) {
-      setErrorMsg("Tombol Print otomatis diblokir di layar pratinjau ini. Untuk saat ini, silakan tekan tombol Ctrl+P (Windows) atau Cmd+P (Mac) di keyboard Anda.");
+      setErrorMsg("Auto-print is restricted in this preview. Please press Ctrl+P (Windows) or Cmd+P (Mac) on your keyboard.");
     }
     window.print();
   };
@@ -390,7 +389,7 @@ export default function App() {
     if (finalSKU) {
       const isDuplicate = inventory.some(item => item.sku && item.sku.toLowerCase() === finalSKU.toLowerCase());
       if (isDuplicate) {
-        setErrorMsg(`Nomor SKU "${finalSKU}" sudah ada, harap gunakan nomor yang lain.`);
+        setErrorMsg(`SKU code "${finalSKU}" already exists. Please use a different code.`);
         return; 
       }
     }
@@ -428,7 +427,7 @@ export default function App() {
 
   const handleDelete = async (id) => {
     if (!canEdit) return;
-    if (!window.confirm("Apakah Anda yakin ingin menghapus barang ini?")) return;
+    if (!window.confirm("Are you sure you want to delete this item?")) return;
     try {
       const docRef = doc(db, 'inventory', id);
       await deleteDoc(docRef);
@@ -466,7 +465,7 @@ export default function App() {
         item.sku.toLowerCase() === editFormData.sku.toLowerCase()
       );
       if (isDuplicate) {
-        setErrorMsg(`Nomor SKU "${editFormData.sku}" sudah ada, harap gunakan nomor yang lain.`);
+        setErrorMsg(`SKU code "${editFormData.sku}" already exists. Please use a different code.`);
         return; 
       }
     }
@@ -526,12 +525,12 @@ export default function App() {
 
   const exportToCSV = () => {
     if (!isAdmin) {
-      setErrorMsg("Hanya Admin yang dapat mengunduh data.");
+      setErrorMsg("Only Administrators can download data.");
       return;
     }
 
     if (inventory.length === 0) {
-      setErrorMsg("Tidak ada data untuk di-export.");
+      setErrorMsg("No data available to export.");
       return;
     }
 
@@ -563,7 +562,7 @@ export default function App() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Inventory_Elrosamoda_${todayDate}.csv`);
+    link.setAttribute("download", `Inventory_Rosamoda_${todayDate}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -582,16 +581,12 @@ export default function App() {
   
   if (isAdmin) { 
     roleText = `Admin: ${currentEmail}`; 
-    roleColor = "bg-emerald-50 text-emerald-700";
-    roleDot = "bg-emerald-500";
+    roleColor = "bg-[#f9f6f0] text-[#b8952d] border-[#e5d39e]";
+    roleDot = "bg-[#d4af37]";
   } else if (isOperator) { 
     roleText = `Operator: ${currentEmail}`; 
-    roleColor = "bg-blue-50 text-blue-700";
-    roleDot = "bg-blue-500";
-  } else if (currentEmail) { 
-    roleText = `Unregistered: ${currentEmail}`; 
-    roleColor = "bg-amber-50 text-amber-700";
-    roleDot = "bg-amber-500";
+    roleColor = "bg-slate-100 text-slate-700 border-slate-200";
+    roleDot = "bg-slate-500";
   }
 
   if (isLoading) {
@@ -600,6 +595,80 @@ export default function App() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900 mx-auto"></div>
           <p className="mt-4 text-gray-600 font-medium">Loading Store...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // IF NOT LOGGED IN: SHOW LOGIN SCREEN
+  if (!currentEmail) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-sans">
+        <div className="bg-white rounded-3xl p-8 md:p-10 max-w-md w-full shadow-2xl border border-slate-100">
+          
+          <div className="text-center mb-8 flex flex-col items-center">
+            {!logoError ? (
+              <img 
+                src="https://drive.google.com/thumbnail?id=1l9Q891y6gdH6vXnT-B9H3LlToKcagtmw&sz=w500" 
+                alt="Rosamoda Logo" 
+                className="h-20 md:h-24 w-auto object-contain drop-shadow-sm mb-2"
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <>
+                <div className="inline-flex p-3 bg-[#f9f6f0] rounded-2xl text-[#d4af37] mb-4 shadow-sm">
+                  <Lock size={32} />
+                </div>
+                <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight mb-1">ROSAMODA</h1>
+              </>
+            )}
+            
+            <p className="text-slate-500 text-sm mt-1">Inventory, Consignment, and Payment System</p>
+            <p className="text-xs text-[#d4af37] font-semibold mt-2 uppercase tracking-wider">Please sign in</p>
+          </div>
+
+          {errorMsg && (
+            <div className="mb-6 p-3.5 bg-red-50 text-red-700 text-sm font-medium rounded-2xl border border-red-100 flex items-start gap-2.5">
+              <AlertCircle size={18} className="mt-0.5 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleCustomLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Email Address</label>
+              <input
+                required
+                type="email"
+                className="w-full p-3.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-[#d4af37] outline-none text-sm transition-all"
+                placeholder="name@gmail.com"
+                value={loginInput.email}
+                onChange={(e) => setLoginInput({...loginInput, email: e.target.value})}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Password</label>
+              <input
+                required
+                type="password"
+                className="w-full p-3.5 border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-[#d4af37] outline-none text-sm transition-all"
+                placeholder="••••••••"
+                value={loginInput.password}
+                onChange={(e) => setLoginInput({...loginInput, password: e.target.value})}
+              />
+            </div>
+            
+            <button
+              type="submit"
+              className="w-full mt-2 py-3.5 bg-[#d4af37] hover:bg-[#c5a028] text-white rounded-xl font-bold transition-colors shadow-lg shadow-amber-900/20 text-sm"
+            >
+              Sign In to System
+            </button>
+          </form>
+
+          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+            <p className="text-xs text-slate-400">© {new Date().getFullYear()} Rosamoda. All rights reserved.</p>
+          </div>
         </div>
       </div>
     );
@@ -616,12 +685,12 @@ export default function App() {
                 {!logoError ? (
                   <img 
                     src="https://drive.google.com/thumbnail?id=1l9Q891y6gdH6vXnT-B9H3LlToKcagtmw&sz=w500" 
-                    alt="Store Logo" 
+                    alt="Rosamoda Logo" 
                     className="h-10 md:h-12 w-auto object-contain drop-shadow-sm"
                     onError={() => setLogoError(true)}
                   />
                 ) : (
-                  <Package className="text-indigo-600" size={32} />
+                  <Package className="text-[#d4af37]" size={32} />
                 )}
                 Inventory System
               </h1>
@@ -634,81 +703,14 @@ export default function App() {
                 {roleText}
               </div>
               <div className="pl-2 border-l border-gray-300">
-                {currentEmail ? (
-                  <button onClick={handleLogout} className="bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1.5 rounded-lg transition-colors font-semibold">
-                    Logout
-                  </button>
-                ) : (
-                  <button onClick={() => setShowLoginModal(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm font-semibold">
-                    Login
-                  </button>
-                )}
+                <button onClick={handleLogout} className="flex items-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-700 px-3.5 py-2 rounded-xl transition-colors font-semibold text-sm">
+                  <LogOut size={16} /> Logout
+                </button>
               </div>
             </div>
           </header>
 
-          {showLoginModal && (
-            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl border border-slate-100">
-                <h2 className="text-xl font-bold text-slate-900 mb-2">Login Sistem</h2>
-                <p className="text-slate-600 mb-4 text-sm">
-                  Masukkan email dan password Anda untuk masuk.
-                </p>
-                
-                {errorMsg && (
-                  <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm font-medium rounded-xl border border-red-100 flex items-start gap-2">
-                    <AlertCircle size={18} className="mt-0.5 shrink-0" />
-                    <span>{errorMsg}</span>
-                  </div>
-                )}
-
-                <form onSubmit={handleCustomLogin}>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input
-                      required
-                      type="email"
-                      className="w-full p-3 border border-slate-300 rounded-xl bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none"
-                      placeholder="email@gmail.com"
-                      value={loginInput.email}
-                      onChange={(e) => setLoginInput({...loginInput, email: e.target.value})}
-                    />
-                  </div>
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                    <input
-                      required
-                      type="password"
-                      className="w-full p-3 border border-slate-300 rounded-xl bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none"
-                      placeholder="••••••••"
-                      value={loginInput.password}
-                      onChange={(e) => setLoginInput({...loginInput, password: e.target.value})}
-                    />
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowLoginModal(false);
-                        setErrorMsg("");
-                      }}
-                      className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-medium transition-colors"
-                    >
-                      Batal
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors"
-                    >
-                      Masuk
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {errorMsg && !showLoginModal && (
+          {errorMsg && (
             <div className="bg-red-50 text-red-600 p-4 rounded-xl flex items-center gap-3 border border-red-100">
               <AlertCircle size={20} />
               <p className="text-sm font-medium">{errorMsg}</p>
@@ -720,7 +722,7 @@ export default function App() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-              <div className="bg-blue-50 p-3 rounded-xl text-blue-600">
+              <div className="bg-slate-100 p-3 rounded-xl text-slate-800">
                 <Tag size={24} />
               </div>
               <div>
@@ -729,7 +731,7 @@ export default function App() {
               </div>
             </div>
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-              <div className="bg-emerald-50 p-3 rounded-xl text-emerald-600">
+              <div className="bg-[#f9f6f0] p-3 rounded-xl text-[#d4af37]">
                 <Package size={24} />
               </div>
               <div>
@@ -738,7 +740,7 @@ export default function App() {
               </div>
             </div>
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-              <div className="bg-indigo-50 p-3 rounded-xl text-indigo-600">
+              <div className="bg-slate-900 p-3 rounded-xl text-[#d4af37]">
                 <TrendingUp size={24} />
               </div>
               <div>
@@ -757,7 +759,7 @@ export default function App() {
                 </div>
                 <input
                   type="text"
-                  className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-900"
                   placeholder="Search brand, name, category, or owner..."
                   value={searchTerm}
                   onChange={(e) => {
@@ -768,7 +770,7 @@ export default function App() {
               </div>
               
               <div className="flex flex-wrap w-full xl:w-auto gap-3">
-                {selectedItems.length > 0 && (
+                {selectedItems.length > 0 && currentEmail && (
                   <>
                     <button
                       onClick={() => {
@@ -778,10 +780,10 @@ export default function App() {
                         setIsInvoiceMode(false);
                         setAttachmentImages([]);
                       }}
-                      className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-colors bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+                      className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-colors bg-white text-slate-800 hover:bg-slate-50 border border-slate-200"
                     >
                       <Printer size={18} />
-                      Cetak Surat ({selectedItems.length})
+                      Print Document ({selectedItems.length})
                     </button>
                     
                     <button
@@ -793,10 +795,10 @@ export default function App() {
                         setSelectedTermIndex('DP');
                         setAttachmentImages([]);
                       }}
-                      className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-colors bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm"
+                      className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-colors bg-[#d4af37] text-white hover:bg-[#c5a028] shadow-sm"
                     >
                       <FileText size={18} />
-                      Buat Invoice ({selectedItems.length})
+                      Create Invoice ({selectedItems.length})
                     </button>
                   </>
                 )}
@@ -804,7 +806,7 @@ export default function App() {
                 {isAdmin && (
                   <button
                     onClick={exportToCSV}
-                    className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-colors bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                    className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-colors bg-slate-900 text-white hover:bg-black"
                   >
                     <Download size={20} />
                     Export Excel
@@ -816,8 +818,8 @@ export default function App() {
                     onClick={() => setIsAdding(!isAdding)}
                     className={`flex-1 xl:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-colors ${
                       isAdding 
-                        ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' 
-                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm'
+                        ? 'bg-slate-200 text-slate-800 hover:bg-slate-300' 
+                        : 'bg-slate-900 text-white hover:bg-black shadow-sm'
                     }`}
                   >
                     {isAdding ? <X size={20} /> : <Plus size={20} />}
@@ -828,76 +830,76 @@ export default function App() {
             </div>
 
             {isAdding && canAdd && (
-              <div className="p-6 bg-indigo-50/50 border-b border-indigo-100">
+              <div className="p-6 bg-[#f9f6f0] border-b border-[#e5d39e]">
                 <form onSubmit={handleAddItem} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Date In</label>
-                    <input required type="date" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white" value={newItem.date} onChange={(e) => setNewItem({...newItem, date: e.target.value})} />
+                    <input required type="date" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#d4af37] bg-white" value={newItem.date} onChange={(e) => setNewItem({...newItem, date: e.target.value})} />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Date Out</label>
-                    <input type="date" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white text-gray-500" value={newItem.dateOut} onChange={(e) => setNewItem({...newItem, dateOut: e.target.value})} />
+                    <input type="date" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#d4af37] bg-white text-gray-500" value={newItem.dateOut} onChange={(e) => setNewItem({...newItem, dateOut: e.target.value})} />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Item Code</label>
                     <div className="flex gap-2">
-                      <input type="text" placeholder="Auto" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white uppercase" value={newItem.sku} onChange={(e) => setNewItem({...newItem, sku: e.target.value.toUpperCase()})} />
-                      <button type="button" onClick={() => setNewItem({...newItem, sku: generateSKU(newItem.brand, newItem.category)})} className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-2 py-2 rounded-lg transition-colors flex items-center justify-center shrink-0" title="Generate Code">
+                      <input type="text" placeholder="Auto" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#d4af37] bg-white uppercase" value={newItem.sku} onChange={(e) => setNewItem({...newItem, sku: e.target.value.toUpperCase()})} />
+                      <button type="button" onClick={() => setNewItem({...newItem, sku: generateSKU(newItem.brand, newItem.category)})} className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-2 py-2 rounded-lg transition-colors flex items-center justify-center shrink-0" title="Generate Code">
                         <Wand2 size={18} />
                       </button>
                     </div>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Brand</label>
-                    <select className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white" value={newItem.brand} onChange={(e) => setNewItem({...newItem, brand: e.target.value})}>
+                    <select className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#d4af37] bg-white" value={newItem.brand} onChange={(e) => setNewItem({...newItem, brand: e.target.value})}>
                       {brands.map(brand => <option key={brand} value={brand}>{brand}</option>)}
                     </select>
                   </div>
                   <div className="lg:col-span-2">
                     <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Item Name</label>
-                    <input required type="text" placeholder="e.g. Classic Flap Bag Medium" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" value={newItem.name} onChange={(e) => setNewItem({...newItem, name: e.target.value})} />
+                    <input required type="text" placeholder="e.g. Classic Flap Bag Medium" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#d4af37]" value={newItem.name} onChange={(e) => setNewItem({...newItem, name: e.target.value})} />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Category</label>
-                    <select className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white" value={newItem.category} onChange={(e) => setNewItem({...newItem, category: e.target.value})}>
+                    <select className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#d4af37] bg-white" value={newItem.category} onChange={(e) => setNewItem({...newItem, category: e.target.value})}>
                       {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Stock</label>
-                    <input required type="number" min="0" placeholder="Qty" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" value={newItem.stock} onChange={(e) => setNewItem({...newItem, stock: e.target.value})} />
+                    <input required type="number" min="0" placeholder="Qty" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#d4af37]" value={newItem.stock} onChange={(e) => setNewItem({...newItem, stock: e.target.value})} />
                   </div>
                   
                   {isAdmin && (
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Modal Price</label>
-                      <input type="number" min="0" placeholder="10000000" className="w-full px-3 py-2 text-sm border border-emerald-300 bg-emerald-50 rounded-lg focus:ring-2 focus:ring-emerald-500" value={newItem.modalPrice} onChange={(e) => setNewItem({...newItem, modalPrice: e.target.value})} />
+                      <input type="number" min="0" placeholder="10000000" className="w-full px-3 py-2 text-sm border border-slate-300 bg-slate-50 rounded-lg focus:ring-2 focus:ring-[#d4af37]" value={newItem.modalPrice} onChange={(e) => setNewItem({...newItem, modalPrice: e.target.value})} />
                     </div>
                   )}
 
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Selling Price</label>
-                    <input required type="number" min="0" placeholder="15000000" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" value={newItem.price} onChange={(e) => setNewItem({...newItem, price: e.target.value})} />
+                    <input required type="number" min="0" placeholder="15000000" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#d4af37]" value={newItem.price} onChange={(e) => setNewItem({...newItem, price: e.target.value})} />
                   </div>
                   
                   <div className="lg:col-span-2 grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Owner Name</label>
-                      <input type="text" placeholder="Consignor Name" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" value={newItem.owner} onChange={(e) => setNewItem({...newItem, owner: e.target.value})} />
+                      <input type="text" placeholder="Consignor Name" className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#d4af37]" value={newItem.owner} onChange={(e) => setNewItem({...newItem, owner: e.target.value})} />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Owner Phone</label>
-                      <input type="tel" placeholder="081234..." className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" value={newItem.ownerPhone} onChange={(e) => setNewItem({...newItem, ownerPhone: e.target.value})} />
+                      <input type="tel" placeholder="081234..." className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#d4af37]" value={newItem.ownerPhone} onChange={(e) => setNewItem({...newItem, ownerPhone: e.target.value})} />
                     </div>
                   </div>
 
                   <div className={isAdmin ? "" : "xl:col-span-2"}>
                     <label className="block text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1">Status</label>
                     <div className="flex gap-2">
-                      <select className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white" value={newItem.status} onChange={(e) => setNewItem({...newItem, status: e.target.value})}>
+                      <select className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#d4af37] bg-white" value={newItem.status} onChange={(e) => setNewItem({...newItem, status: e.target.value})}>
                         {statuses.map(stat => <option key={stat} value={stat}>{stat}</option>)}
                       </select>
-                      <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg transition-colors flex items-center justify-center shrink-0">
+                      <button type="submit" className="bg-slate-900 hover:bg-black text-white px-3 py-2 rounded-lg transition-colors flex items-center justify-center shrink-0">
                         <Save size={18} />
                       </button>
                     </div>
@@ -909,11 +911,11 @@ export default function App() {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse whitespace-nowrap min-w-max">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100 text-gray-500 text-xs uppercase tracking-wider">
+                  <tr className="bg-slate-50 border-b-2 border-slate-900 text-slate-500 text-xs uppercase tracking-wider">
                     <th className="p-3 font-semibold text-center w-12">
                       <input 
                         type="checkbox" 
-                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                        className="rounded border-gray-300 text-slate-900 focus:ring-slate-900 w-4 h-4 cursor-pointer"
                         checked={selectedItems.length === filteredInventory.length && filteredInventory.length > 0}
                         onChange={handleSelectAll}
                       />
@@ -926,9 +928,9 @@ export default function App() {
                     <th className="p-3 font-semibold">Item Name</th>
                     <th className="p-3 font-semibold">Category</th>
                     <th className="p-3 font-semibold text-center">Stock</th>
-                    {isAdmin && <th className="p-3 font-semibold text-right text-emerald-700">Modal Price</th>}
+                    {isAdmin && <th className="p-3 font-semibold text-right text-slate-500">Modal Price</th>}
                     <th className="p-3 font-semibold text-right">Selling Price</th>
-                    {isAdmin && <th className="p-3 font-semibold text-right text-blue-700">Profit</th>}
+                    {isAdmin && <th className="p-3 font-semibold text-right text-slate-900">Profit</th>}
                     <th className="p-3 font-semibold">Owner Info</th>
                     <th className="p-3 font-semibold">Status</th>
                   </tr>
@@ -944,68 +946,68 @@ export default function App() {
                     currentItems.map((item, index) => {
                       const absoluteIndex = indexOfFirstItem + index;
                       return (
-                      <tr key={item.id} className={`hover:bg-gray-50/50 transition-colors group ${selectedItems.includes(item.id) ? 'bg-indigo-50/30' : ''}`}>
+                      <tr key={item.id} className={`hover:bg-slate-50 transition-colors group ${selectedItems.includes(item.id) ? 'bg-[#f9f6f0]/60' : ''}`}>
                         
                         {editingId === item.id && canEdit ? (
                           <>
                             <td className="p-3 text-center"></td>
                             <td className="p-3 text-center text-gray-400 font-medium">{absoluteIndex + 1}</td>
                             <td className="p-2">
-                              <input type="date" className="w-32 p-1.5 border border-indigo-300 rounded focus:ring-1 focus:ring-indigo-500 text-xs" value={editFormData.date} onChange={(e) => setEditFormData({...editFormData, date: e.target.value})} />
+                              <input type="date" className="w-32 p-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-slate-900 text-xs" value={editFormData.date} onChange={(e) => setEditFormData({...editFormData, date: e.target.value})} />
                             </td>
                             <td className="p-2">
-                              <input type="date" className="w-32 p-1.5 border border-indigo-300 rounded focus:ring-1 focus:ring-indigo-500 text-xs" value={editFormData.dateOut} onChange={(e) => setEditFormData({...editFormData, dateOut: e.target.value})} />
+                              <input type="date" className="w-32 p-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-slate-900 text-xs" value={editFormData.dateOut} onChange={(e) => setEditFormData({...editFormData, dateOut: e.target.value})} />
                             </td>
                             <td className="p-2">
-                              <input type="text" className="w-28 p-1.5 border border-indigo-300 rounded focus:ring-1 focus:ring-indigo-500 text-xs uppercase" value={editFormData.sku} onChange={(e) => setEditFormData({...editFormData, sku: e.target.value.toUpperCase()})} placeholder="Code" />
+                              <input type="text" className="w-28 p-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-slate-900 text-xs uppercase" value={editFormData.sku} onChange={(e) => setEditFormData({...editFormData, sku: e.target.value.toUpperCase()})} placeholder="Code" />
                             </td>
                             <td className="p-2">
-                              <select className="w-36 p-1.5 border border-indigo-300 rounded text-xs" value={editFormData.brand} onChange={(e) => setEditFormData({...editFormData, brand: e.target.value})}>
+                              <select className="w-36 p-1.5 border border-slate-300 rounded text-xs" value={editFormData.brand} onChange={(e) => setEditFormData({...editFormData, brand: e.target.value})}>
                                 {brands.map(brand => <option key={brand} value={brand}>{brand}</option>)}
                               </select>
                             </td>
                             <td className="p-2">
-                              <input type="text" className="w-48 p-1.5 border border-indigo-300 rounded focus:ring-1 focus:ring-indigo-500 text-xs" value={editFormData.name} onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} />
+                              <input type="text" className="w-48 p-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-slate-900 text-xs" value={editFormData.name} onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} />
                             </td>
                             <td className="p-2">
-                              <select className="w-32 p-1.5 border border-indigo-300 rounded text-xs" value={editFormData.category} onChange={(e) => setEditFormData({...editFormData, category: e.target.value})}>
+                              <select className="w-32 p-1.5 border border-slate-300 rounded text-xs" value={editFormData.category} onChange={(e) => setEditFormData({...editFormData, category: e.target.value})}>
                                 {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                               </select>
                             </td>
                             <td className="p-2">
-                              <input type="number" min="0" className="w-16 p-1.5 border border-indigo-300 rounded text-center block mx-auto text-xs" value={editFormData.stock} onChange={(e) => setEditFormData({...editFormData, stock: e.target.value})} />
+                              <input type="number" min="0" className="w-16 p-1.5 border border-slate-300 rounded text-center block mx-auto text-xs" value={editFormData.stock} onChange={(e) => setEditFormData({...editFormData, stock: e.target.value})} />
                             </td>
                             
                             {isAdmin && (
                               <td className="p-2">
-                                <input type="number" min="0" className="w-28 p-1.5 border border-emerald-300 bg-emerald-50 rounded text-right block ml-auto text-xs" value={editFormData.modalPrice} onChange={(e) => setEditFormData({...editFormData, modalPrice: e.target.value})} />
+                                <input type="number" min="0" className="w-28 p-1.5 border border-slate-300 bg-slate-50 rounded text-right block ml-auto text-xs" value={editFormData.modalPrice} onChange={(e) => setEditFormData({...editFormData, modalPrice: e.target.value})} />
                               </td>
                             )}
 
                             <td className="p-2">
-                              <input type="number" min="0" className="w-28 p-1.5 border border-indigo-300 rounded text-right block ml-auto text-xs" value={editFormData.price} onChange={(e) => setEditFormData({...editFormData, price: e.target.value})} />
+                              <input type="number" min="0" className="w-28 p-1.5 border border-slate-300 rounded text-right block ml-auto text-xs" value={editFormData.price} onChange={(e) => setEditFormData({...editFormData, price: e.target.value})} />
                             </td>
                             
                             {isAdmin && (
-                              <td className="p-2 text-right text-xs font-semibold text-blue-700 align-middle">
+                              <td className="p-2 text-right text-xs font-bold text-slate-900 align-middle">
                                 {formatRupiah((Number(editFormData.price) || 0) - (Number(editFormData.modalPrice) || 0))}
                               </td>
                             )}
 
                             <td className="p-2">
                               <div className="flex flex-col gap-1">
-                                <input type="text" className="w-28 p-1.5 border border-indigo-300 rounded focus:ring-1 focus:ring-indigo-500 text-xs" value={editFormData.owner} onChange={(e) => setEditFormData({...editFormData, owner: e.target.value})} placeholder="Name" />
-                                <input type="tel" className="w-28 p-1.5 border border-indigo-300 rounded focus:ring-1 focus:ring-indigo-500 text-xs" value={editFormData.ownerPhone} onChange={(e) => setEditFormData({...editFormData, ownerPhone: e.target.value})} placeholder="Phone" />
+                                <input type="text" className="w-28 p-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-slate-900 text-xs" value={editFormData.owner} onChange={(e) => setEditFormData({...editFormData, owner: e.target.value})} placeholder="Name" />
+                                <input type="tel" className="w-28 p-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-slate-900 text-xs" value={editFormData.ownerPhone} onChange={(e) => setEditFormData({...editFormData, ownerPhone: e.target.value})} placeholder="Phone" />
                               </div>
                             </td>
                             <td className="p-2">
                               <div className="flex items-center gap-2">
-                                <select className="w-32 p-1.5 border border-indigo-300 rounded text-xs" value={editFormData.status} onChange={(e) => setEditFormData({...editFormData, status: e.target.value})}>
+                                <select className="w-32 p-1.5 border border-slate-300 rounded text-xs" value={editFormData.status} onChange={(e) => setEditFormData({...editFormData, status: e.target.value})}>
                                   {statuses.map(stat => <option key={stat} value={stat}>{stat}</option>)}
                                 </select>
                                 <div className="flex items-center gap-1">
-                                  <button onClick={() => saveEdit(item.id)} className="p-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded" title="Save"><Save size={16} /></button>
-                                  <button onClick={() => setEditingId(null)} className="p-1 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded" title="Cancel"><X size={16} /></button>
+                                  <button onClick={() => saveEdit(item.id)} className="p-1 bg-[#d4af37] text-white hover:bg-[#c5a028] rounded" title="Save"><Save size={16} /></button>
+                                  <button onClick={() => setEditingId(null)} className="p-1 bg-slate-200 text-slate-700 hover:bg-slate-300 rounded" title="Cancel"><X size={16} /></button>
                                 </div>
                               </div>
                             </td>
@@ -1015,7 +1017,7 @@ export default function App() {
                             <td className="p-3 text-center">
                               <input 
                                 type="checkbox" 
-                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                                className="rounded border-gray-300 text-slate-900 focus:ring-slate-900 w-4 h-4 cursor-pointer"
                                 checked={selectedItems.includes(item.id)}
                                 onChange={() => handleSelect(item.id)}
                               />
@@ -1023,7 +1025,7 @@ export default function App() {
                             <td className="p-3 text-center text-gray-400 font-medium">{absoluteIndex + 1}</td>
                             <td className="p-3 text-slate-600">{formatDateDisplay(item.date)}</td>
                             <td className="p-3 text-slate-600">{formatDateDisplay(item.dateOut)}</td>
-                            <td className="p-3 font-mono text-xs font-medium text-indigo-600">{item.sku || '-'}</td>
+                            <td className="p-3 font-mono text-xs font-bold text-[#b8952d]">{item.sku || '-'}</td>
                             <td className="p-3 font-medium text-slate-800">{item.brand}</td>
                             <td className="p-3 font-medium text-slate-900 max-w-xs truncate" title={item.name}>{item.name}</td>
                             <td className="p-3">
@@ -1034,7 +1036,7 @@ export default function App() {
                             </td>
                             
                             {isAdmin && (
-                              <td className="p-3 text-right font-medium text-emerald-700">
+                              <td className="p-3 text-right font-medium text-slate-500">
                                 {formatRupiah(item.modalPrice)}
                               </td>
                             )}
@@ -1044,7 +1046,7 @@ export default function App() {
                             </td>
                             
                             {isAdmin && (
-                              <td className="p-3 text-right font-medium text-blue-700">
+                              <td className="p-3 text-right font-bold text-slate-900">
                                 {formatRupiah((Number(item.price) || 0) - (Number(item.modalPrice) || 0))}
                               </td>
                             )}
@@ -1057,7 +1059,7 @@ export default function App() {
                                     href={`https://wa.me/${item.ownerPhone.replace(/[^0-9]/g, '').replace(/^0/, '62')}`} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
-                                    className="text-xs text-emerald-600 hover:text-emerald-700 hover:underline mt-0.5"
+                                    className="text-xs text-[#d4af37] hover:text-[#c5a028] hover:underline mt-0.5"
                                     title="Chat via WhatsApp"
                                   >
                                     {item.ownerPhone}
@@ -1072,7 +1074,7 @@ export default function App() {
                                 </span>
 
                                 <div className="flex items-center gap-1 opacity-100 xl:opacity-0 group-hover:opacity-100 transition-opacity">
-                                  {canAdd && (
+                                  {currentEmail && (
                                     <>
                                       <button onClick={() => {
                                         setPrintItems([item]);
@@ -1087,13 +1089,13 @@ export default function App() {
                                         setPaymentType('full');
                                         setSelectedTermIndex('DP');
                                         setAttachmentImages([]);
-                                      }} className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md" title="Buat Invoice"><FileText size={16} /></button>
+                                      }} className="p-1.5 text-[#d4af37] hover:bg-[#f9f6f0] rounded-md" title="Create Invoice"><FileText size={16} /></button>
                                     </>
                                   )}
 
                                   {canEdit && (
                                     <>
-                                      <button onClick={() => startEdit(item)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md" title="Edit Item"><Edit2 size={16} /></button>
+                                      <button onClick={() => startEdit(item)} className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-md" title="Edit Item"><Edit2 size={16} /></button>
                                       <button onClick={() => handleDelete(item.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-md" title="Delete Item"><Trash2 size={16} /></button>
                                     </>
                                   )}
@@ -1112,7 +1114,7 @@ export default function App() {
             {totalPages > 1 && (
               <div className="p-4 bg-white border-t border-gray-100 flex items-center justify-between">
                 <p className="text-sm text-gray-500">
-                  Menampilkan <span className="font-semibold">{indexOfFirstItem + 1}</span> - <span className="font-semibold">{Math.min(indexOfLastItem, filteredInventory.length)}</span> dari <span className="font-semibold">{filteredInventory.length}</span> data
+                  Showing <span className="font-semibold">{indexOfFirstItem + 1}</span> - <span className="font-semibold">{Math.min(indexOfLastItem, filteredInventory.length)}</span> of <span className="font-semibold">{filteredInventory.length}</span> entries
                 </p>
                 <div className="flex items-center gap-2">
                   <button
@@ -1120,17 +1122,17 @@ export default function App() {
                     disabled={currentPage === 1}
                     className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
                   >
-                    <ChevronLeft size={16} /> Sebelumnya
+                    <ChevronLeft size={16} /> Previous
                   </button>
                   <span className="text-sm font-semibold text-slate-700 px-3 py-1 bg-slate-100 rounded-lg">
-                    Frame {currentPage} dari {totalPages}
+                    Page {currentPage} of {totalPages}
                   </span>
                   <button
                     onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                     disabled={currentPage === totalPages}
                     className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-medium"
                   >
-                    Berikutnya <ChevronRight size={16} />
+                    Next <ChevronRight size={16} />
                   </button>
                 </div>
               </div>
@@ -1142,26 +1144,26 @@ export default function App() {
 
       {printItems && printItems.length > 0 && !isInvoiceMode && (
         <div className="fixed inset-0 z-[100] bg-white overflow-y-auto print:static print:overflow-visible print:bg-white text-slate-800 font-sans">
-          <div className="print:hidden sticky top-0 bg-slate-50 border-b border-slate-200 p-4 px-8 flex flex-wrap gap-4 items-center justify-between shadow-sm z-10">
+          <div className="print:hidden sticky top-0 bg-white border-b border-slate-200 p-4 px-8 flex flex-wrap gap-4 items-center justify-between shadow-sm z-10">
             <div className="flex items-center gap-4">
               <button onClick={() => setPrintItems([])} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 font-medium">
-                <X size={18} /> Tutup
+                <X size={18} /> Close
               </button>
-              <div className="flex items-center gap-2 bg-white p-1 rounded-lg border border-slate-300">
-                <button onClick={() => setPrintType('IN')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-colors ${printType === 'IN' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>Surat Masuk</button>
-                <button onClick={() => setPrintType('OUT')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-colors ${printType === 'OUT' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>Surat Keluar</button>
+              <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                <button onClick={() => setPrintType('IN')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-colors ${printType === 'IN' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-200'}`}>Consignment Receipt</button>
+                <button onClick={() => setPrintType('OUT')} className={`px-4 py-1.5 rounded-md text-sm font-bold transition-colors ${printType === 'OUT' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-200'}`}>Consignment Return</button>
               </div>
             </div>
 
             <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-lg font-medium cursor-pointer transition-colors">
+              <label className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-800 border border-slate-200 hover:bg-slate-200 rounded-lg font-medium cursor-pointer transition-colors">
                 <ImagePlus size={18} />
-                <span>Upload Foto Bukti</span>
+                <span>Upload Photos</span>
                 <input type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
               </label>
               
-              <button onClick={handlePrint} className="flex items-center gap-2 px-6 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 font-bold transition-colors shadow-md">
-                <Printer size={18} /> Cetak (Print)
+              <button onClick={handlePrint} className="flex items-center gap-2 px-6 py-2 bg-[#d4af37] text-white rounded-lg hover:bg-[#c5a028] font-bold transition-colors shadow-md">
+                <Printer size={18} /> Print Document
               </button>
             </div>
           </div>
@@ -1172,20 +1174,20 @@ export default function App() {
                 {!logoError ? (
                   <img 
                     src="https://drive.google.com/thumbnail?id=1l9Q891y6gdH6vXnT-B9H3LlToKcagtmw&sz=w500" 
-                    alt="Store Logo" 
+                    alt="Rosamoda Logo" 
                     className="h-16 md:h-20 print:h-20 print:w-auto print:max-w-[280px] w-auto object-contain object-left drop-shadow-sm print:drop-shadow-none -ml-1 print:ml-0 print:block"
                     onError={() => setLogoError(true)}
                   />
                 ) : (
                   <div>
-                    <h1 className="text-3xl font-black tracking-tight text-slate-900">ROSAMODA</h1>
+                    <h1 className="text-3xl font-black tracking-widest text-slate-900">ROSAMODA</h1>
                     <p className="text-sm text-slate-500 font-medium mt-1">Luxury Fashion Consignment</p>
                   </div>
                 )}
 
                 <div className="flex flex-col gap-2.5 mt-2">
                   <div className="flex items-start gap-3 w-72 justify-start">
-                    <div className="bg-[#e2c473] text-white p-1 rounded-full shrink-0 mt-0.5">
+                    <div className="bg-[#d4af37] text-white p-1 rounded-full shrink-0 mt-0.5">
                       <MapPin size={14} strokeWidth={2.5} />
                     </div>
                     <span className="text-left font-serif text-[15px] leading-tight text-slate-800">
@@ -1194,13 +1196,13 @@ export default function App() {
                     </span>
                   </div>
                   <div className="flex items-center gap-3 w-72 justify-start">
-                    <div className="bg-[#e2c473] text-white p-1 rounded-full shrink-0">
+                    <div className="bg-[#d4af37] text-white p-1 rounded-full shrink-0">
                       <Phone size={14} strokeWidth={2.5} />
                     </div>
                     <span className="text-left font-serif text-[15px] text-slate-800">+6289 5603 858789</span>
                   </div>
                   <div className="flex items-center gap-3 w-72 justify-start">
-                    <div className="bg-[#e2c473] text-white p-1 rounded-full shrink-0">
+                    <div className="bg-[#d4af37] text-white p-1 rounded-full shrink-0">
                       <Mail size={14} strokeWidth={2.5} />
                     </div>
                     <span className="text-left font-serif text-[15px] text-slate-800">elrosamoda@gmail.co.id</span>
@@ -1209,7 +1211,7 @@ export default function App() {
               </div>
 
               <div className="text-right flex flex-col items-end">
-                <h2 className="text-2xl font-bold text-slate-800 uppercase tracking-wide">
+                <h2 className="text-2xl font-bold text-slate-900 uppercase tracking-wide">
                   {printType === 'IN' ? 'CONSIGNMENT RECEIPT' : 'CONSIGNMENT RETURN'}
                 </h2>
                 <p className="text-sm text-slate-500 mt-1 mb-4">
@@ -1250,7 +1252,7 @@ export default function App() {
                   {printItems.map((item, idx) => (
                     <tr key={item.id}>
                       <td className="p-3 text-slate-500">{idx + 1}</td>
-                      <td className="p-3 font-mono font-medium text-indigo-700">{item.sku}</td>
+                      <td className="p-3 font-mono font-bold text-[#b8952d]">{item.sku}</td>
                       <td className="p-3">
                         <div className="font-bold text-slate-900">{item.name}</div>
                         <div className="text-xs text-slate-500">{item.brand}</div>
@@ -1259,7 +1261,7 @@ export default function App() {
                       <td className="p-3 text-slate-600 text-center">
                         {printType === 'IN' ? formatDateDisplay(item.date) : formatDateDisplay(item.dateOut)}
                       </td>
-                      {isAdmin && <td className="p-3 font-medium text-emerald-700 text-right">{formatRupiah(item.modalPrice)}</td>}
+                      {isAdmin && <td className="p-3 font-medium text-slate-500 text-right">{formatRupiah(item.modalPrice)}</td>}
                       <td className="p-3 font-medium text-slate-800 text-right">{formatRupiah(item.price)}</td>
                     </tr>
                   ))}
@@ -1273,11 +1275,11 @@ export default function App() {
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {attachmentImages.map((imgSrc, idx) => (
                     <div key={idx} className="border border-slate-200 rounded-lg p-2 flex items-center justify-center bg-slate-50 relative group">
-                      <img src={imgSrc} alt={`Bukti ${idx+1}`} className="max-h-48 object-contain rounded" />
+                      <img src={imgSrc} alt={`Attachment ${idx+1}`} className="max-h-48 object-contain rounded" />
                       <button 
                         onClick={() => setAttachmentImages(prev => prev.filter((_, i) => i !== idx))}
                         className="print:hidden absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                        title="Hapus Foto"
+                        title="Delete Photo"
                       >
                         <X size={14} />
                       </button>
@@ -1286,7 +1288,7 @@ export default function App() {
                 </div>
               ) : (
                 <div className="w-full h-32 border-2 border-dashed border-slate-300 rounded-xl flex items-center justify-center bg-gray-50 text-slate-400 print:border-solid print:h-48">
-                  <span className="print:hidden">Klik 'Upload Foto Bukti' di atas untuk melampirkan banyak foto sekaligus.</span>
+                  <span className="print:hidden">Click 'Upload Photos' above to attach multiple photos.</span>
                   <span className="hidden print:block text-slate-300">(Photo Attachments Area)</span>
                 </div>
               )}
@@ -1307,76 +1309,74 @@ export default function App() {
         </div>
       )}
 
-      {/* --- MODAL INVOICE CUSTOM (Full Payment / Instalment dengan Pemilihan Cicilan Ke-X) --- */}
       {printItems && printItems.length > 0 && isInvoiceMode && (
         <div className="fixed inset-0 z-[100] bg-white overflow-y-auto print:static print:overflow-visible print:bg-white text-slate-800 font-sans">
           
-          <div className="print:hidden sticky top-0 bg-slate-50 border-b border-slate-200 p-4 px-8 flex flex-wrap gap-4 items-center justify-between shadow-sm z-10">
+          <div className="print:hidden sticky top-0 bg-white border-b border-slate-200 p-4 px-8 flex flex-wrap gap-4 items-center justify-between shadow-sm z-10">
             <div className="flex items-center gap-4">
               <button onClick={() => setPrintItems([])} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 font-medium">
-                <X size={18} /> Tutup
+                <X size={18} /> Close
               </button>
               
-              <div className="flex items-center gap-2 bg-white p-1 rounded-lg border border-slate-300">
+              <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-200">
                 <button 
                   onClick={() => { setPaymentType('full'); setSelectedTermIndex('DP'); }} 
-                  className={`px-4 py-1.5 rounded-md text-sm font-bold transition-colors flex items-center gap-1.5 ${paymentType === 'full' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                  className={`px-4 py-1.5 rounded-md text-sm font-bold transition-colors flex items-center gap-1.5 ${paymentType === 'full' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-200'}`}
                 >
                   <CreditCard size={16} /> 1. Full Payment
                 </button>
                 <button 
                   onClick={() => { setPaymentType('instalment'); setSelectedTermIndex('DP'); }} 
-                  className={`px-4 py-1.5 rounded-md text-sm font-bold transition-colors flex items-center gap-1.5 ${paymentType === 'instalment' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                  className={`px-4 py-1.5 rounded-md text-sm font-bold transition-colors flex items-center gap-1.5 ${paymentType === 'instalment' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-200'}`}
                 >
-                  <Calendar size={16} /> 2. Instalment (Cicilan)
+                  <Calendar size={16} /> 2. Instalment
                 </button>
               </div>
             </div>
 
             <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-lg font-medium cursor-pointer transition-colors">
+              <label className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-800 border border-slate-200 hover:bg-slate-200 rounded-lg font-medium cursor-pointer transition-colors">
                 <ImagePlus size={18} />
-                <span>Upload Foto Bukti</span>
+                <span>Upload Photos</span>
                 <input type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
               </label>
               
-              <button onClick={handlePrint} className="flex items-center gap-2 px-6 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 font-bold transition-colors shadow-md">
-                <Printer size={18} /> Cetak Invoice
+              <button onClick={handlePrint} className="flex items-center gap-2 px-6 py-2 bg-[#d4af37] text-white rounded-lg hover:bg-[#c5a028] font-bold transition-colors shadow-md">
+                <Printer size={18} /> Print Invoice
               </button>
             </div>
           </div>
 
           <div className="max-w-5xl mx-auto bg-white p-8 md:p-12 text-slate-900 print:max-w-none print:w-full print:p-6 print:m-0">
             
-            {/* Form Input Data Pembeli & Pemilihan Termin Pembayaran (Disembunyikan saat dicetak) */}
-            <div className="print:hidden mb-8 bg-indigo-50/60 p-5 rounded-xl border border-indigo-100 space-y-4">
+            <div className="print:hidden mb-8 bg-[#f9f6f0] p-5 rounded-xl border border-[#e5d39e] space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Nama Pembeli (Customer)</label>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Customer Name</label>
                   <input 
                     type="text" 
-                    placeholder="Nama Lengkap Pembeli" 
-                    className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm"
+                    placeholder="Full Customer Name" 
+                    className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#d4af37]"
                     value={invoiceDetails.buyerName}
                     onChange={(e) => setInvoiceDetails({...invoiceDetails, buyerName: e.target.value})}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">No. Telepon / WhatsApp</label>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Phone / WhatsApp</label>
                   <input 
                     type="tel" 
                     placeholder="08123456789" 
-                    className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm"
+                    className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#d4af37]"
                     value={invoiceDetails.buyerPhone}
                     onChange={(e) => setInvoiceDetails({...invoiceDetails, buyerPhone: e.target.value})}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Alamat Pengiriman</label>
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Shipping Address</label>
                   <input 
                     type="text" 
-                    placeholder="Kota / Alamat Singkat" 
-                    className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm"
+                    placeholder="City / Short Address" 
+                    className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#d4af37]"
                     value={invoiceDetails.buyerAddress}
                     onChange={(e) => setInvoiceDetails({...invoiceDetails, buyerAddress: e.target.value})}
                   />
@@ -1384,59 +1384,58 @@ export default function App() {
               </div>
 
               {paymentType === 'instalment' && (
-                <div className="pt-3 border-t border-indigo-200 grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="pt-3 border-t border-[#e5d39e] grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Uang Muka / DP (Rp)</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Down Payment (DP) (Rp)</label>
                     <input 
                       type="number" 
-                      placeholder="Contoh: 2000000" 
-                      className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm"
+                      placeholder="e.g. 2000000" 
+                      className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#d4af37]"
                       value={invoiceDetails.downPayment}
                       onChange={(e) => setInvoiceDetails({...invoiceDetails, downPayment: e.target.value})}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Tenor Cicilan</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Tenor (Months)</label>
                     <select 
-                      className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm"
+                      className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#d4af37]"
                       value={invoiceDetails.tenorMonths}
                       onChange={(e) => setInvoiceDetails({...invoiceDetails, tenorMonths: e.target.value})}
                     >
-                      <option value="2">2 Bulan</option>
-                      <option value="3">3 Bulan</option>
-                      <option value="6">6 Bulan</option>
-                      <option value="12">12 Bulan</option>
+                      <option value="2">2 Months</option>
+                      <option value="3">3 Months</option>
+                      <option value="6">6 Months</option>
+                      <option value="12">12 Months</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Jatuh Tempo Cicilan 1</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-1">First Instalment Due Date</label>
                     <input 
                       type="date" 
-                      className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm"
+                      className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-[#d4af37]"
                       value={invoiceDetails.dueDateFirst}
                       onChange={(e) => setInvoiceDetails({...invoiceDetails, dueDateFirst: e.target.value})}
                     />
                   </div>
                   
-                  {/* Pilihan Termin yang Ingin Dicetak (DP atau Cicilan ke-1, ke-2, dst) */}
-                  <div className="md:col-span-3 bg-white p-3 rounded-lg border border-indigo-200 flex flex-col md:flex-row items-center justify-between gap-3">
-                    <span className="text-xs font-bold uppercase text-slate-700">Pilih Invoice Termin Pembayaran yang Dicetak:</span>
+                  <div className="md:col-span-3 bg-white p-3 rounded-lg border border-[#e5d39e] flex flex-col md:flex-row items-center justify-between gap-3">
+                    <span className="text-xs font-bold uppercase text-slate-700">Select Term Invoice to Print:</span>
                     <div className="flex flex-wrap gap-2">
                       <button 
                         type="button" 
                         onClick={() => setSelectedTermIndex('DP')}
-                        className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${selectedTermIndex === 'DP' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${selectedTermIndex === 'DP' ? 'bg-[#d4af37] text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
                       >
-                        Uang Muka (DP)
+                        Down Payment (DP)
                       </button>
                       {Array.from({ length: parseInt(invoiceDetails.tenorMonths) || 3 }).map((_, idx) => (
                         <button 
                           key={idx}
                           type="button" 
                           onClick={() => setSelectedTermIndex(idx)}
-                          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${selectedTermIndex === idx ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${selectedTermIndex === idx ? 'bg-[#d4af37] text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
                         >
-                          Cicilan ke-{idx + 1}
+                          Instalment #{idx + 1}
                         </button>
                       ))}
                     </div>
@@ -1445,26 +1444,25 @@ export default function App() {
               )}
             </div>
 
-            {/* Header Invoice */}
             <div className="flex justify-between items-start border-b-2 border-slate-900 pb-6 mb-8 print:break-inside-avoid">
               <div className="flex flex-col items-start gap-4">
                 {!logoError ? (
                   <img 
                     src="https://drive.google.com/thumbnail?id=1l9Q891y6gdH6vXnT-B9H3LlToKcagtmw&sz=w500" 
-                    alt="Store Logo" 
+                    alt="Rosamoda Logo" 
                     className="h-16 md:h-20 print:h-20 print:w-auto print:max-w-[280px] w-auto object-contain object-left drop-shadow-sm print:drop-shadow-none -ml-1 print:ml-0 print:block"
                     onError={() => setLogoError(true)}
                   />
                 ) : (
                   <div>
-                    <h1 className="text-3xl font-black tracking-tight text-slate-900">ROSAMODA</h1>
+                    <h1 className="text-3xl font-black tracking-widest text-slate-900">ROSAMODA</h1>
                     <p className="text-sm text-slate-500 font-medium mt-1">Luxury Fashion Consignment</p>
                   </div>
                 )}
 
                 <div className="flex flex-col gap-2.5 mt-2">
                   <div className="flex items-start gap-3 w-72 justify-start">
-                    <div className="bg-[#e2c473] text-white p-1 rounded-full shrink-0 mt-0.5">
+                    <div className="bg-[#d4af37] text-white p-1 rounded-full shrink-0 mt-0.5">
                       <MapPin size={14} strokeWidth={2.5} />
                     </div>
                     <span className="text-left font-serif text-[15px] leading-tight text-slate-800">
@@ -1473,13 +1471,13 @@ export default function App() {
                     </span>
                   </div>
                   <div className="flex items-center gap-3 w-72 justify-start">
-                    <div className="bg-[#e2c473] text-white p-1 rounded-full shrink-0">
+                    <div className="bg-[#d4af37] text-white p-1 rounded-full shrink-0">
                       <Phone size={14} strokeWidth={2.5} />
                     </div>
                     <span className="text-left font-serif text-[15px] text-slate-800">+6289 5603 858789</span>
                   </div>
                   <div className="flex items-center gap-3 w-72 justify-start">
-                    <div className="bg-[#e2c473] text-white p-1 rounded-full shrink-0">
+                    <div className="bg-[#d4af37] text-white p-1 rounded-full shrink-0">
                       <Mail size={14} strokeWidth={2.5} />
                     </div>
                     <span className="text-left font-serif text-[15px] text-slate-800">elrosamoda@gmail.co.id</span>
@@ -1489,34 +1487,32 @@ export default function App() {
 
               <div className="text-right flex flex-col items-end">
                 <h2 className="text-2xl font-black text-slate-900 uppercase tracking-wide">
-                  {paymentType === 'full' ? 'SALES INVOICE' : (selectedTermIndex === 'DP' ? 'INVOICE - UANG MUKA (DP)' : `INVOICE - CICILAN KE-${selectedTermIndex + 1}`)}
+                  {paymentType === 'full' ? 'SALES INVOICE' : (selectedTermIndex === 'DP' ? 'INVOICE - DOWN PAYMENT (DP)' : `INVOICE - INSTALMENT #${selectedTermIndex + 1}`)}
                 </h2>
                 <div className="mt-2 text-sm text-slate-600 space-y-0.5">
-                  <p><span className="font-bold">No. Invoice:</span> INV-{Date.now().toString().slice(-6)}-{paymentType === 'full' ? 'FULL' : (selectedTermIndex === 'DP' ? 'DP' : `C${selectedTermIndex + 1}`)}</p>
-                  <p><span className="font-bold">Tanggal Cetak:</span> {formatDateDisplay(todayDate)}</p>
-                  <p><span className="font-bold">Tipe Pembayaran:</span> <span className="uppercase text-indigo-700 font-bold">{paymentType === 'full' ? 'Full Payment' : `Instalment (${invoiceDetails.tenorMonths} Bulan)`}</span></p>
+                  <p><span className="font-bold">Invoice No:</span> INV-{Date.now().toString().slice(-6)}-{paymentType === 'full' ? 'FULL' : (selectedTermIndex === 'DP' ? 'DP' : `C${selectedTermIndex + 1}`)}</p>
+                  <p><span className="font-bold">Print Date:</span> {formatDateDisplay(todayDate)}</p>
+                  <p><span className="font-bold">Payment Type:</span> <span className="uppercase text-[#d4af37] font-bold">{paymentType === 'full' ? 'Full Payment' : `Instalment (${invoiceDetails.tenorMonths} Months)`}</span></p>
                 </div>
               </div>
             </div>
 
-            {/* Info Pembeli & Toko */}
             <div className="mb-8 grid grid-cols-2 gap-8 bg-slate-50 p-4 rounded-lg border border-slate-200">
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Billed To (Pembeli):</h3>
-                <p className="text-base font-bold text-slate-900">{invoiceDetails.buyerName || '(Nama Pembeli Belum Diisi)'}</p>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Billed To (Customer):</h3>
+                <p className="text-base font-bold text-slate-900">{invoiceDetails.buyerName || '(Customer Name Not Provided)'}</p>
                 <p className="text-sm text-slate-700">{invoiceDetails.buyerPhone || '-'}</p>
                 <p className="text-sm text-slate-600">{invoiceDetails.buyerAddress || '-'}</p>
               </div>
               <div className="text-right">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Status Termin</h3>
-                <p className="text-base font-bold text-indigo-700">
-                  {paymentType === 'full' ? 'LUNAS (Paid in Full)' : (selectedTermIndex === 'DP' ? 'PEMBAYARAN UANG MUKA (DP)' : `TAGIHAN CICILAN KE-${selectedTermIndex + 1} dari ${invoiceDetails.tenorMonths}`)}
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Term Status</h3>
+                <p className="text-base font-bold text-[#b8952d]">
+                  {paymentType === 'full' ? 'PAID IN FULL' : (selectedTermIndex === 'DP' ? 'DOWN PAYMENT (DP)' : `INSTALMENT #${selectedTermIndex + 1} of ${invoiceDetails.tenorMonths}`)}
                 </p>
-                <p className="text-xs text-slate-500 mt-1">Authorized by Elrosamoda Store</p>
+                <p className="text-xs text-slate-500 mt-1">Authorized by Rosamoda Store</p>
               </div>
             </div>
 
-            {/* Tabel Barang yang Dibeli */}
             <div className="mb-8">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 mb-4 border-b-2 border-slate-200 pb-2">Purchased Items</h3>
               <table className="w-full text-left border-collapse text-sm">
@@ -1536,7 +1532,7 @@ export default function App() {
                     return (
                       <tr key={item.id}>
                         <td className="p-3 text-slate-500">{idx + 1}</td>
-                        <td className="p-3 font-mono font-medium text-indigo-700">{item.sku}</td>
+                        <td className="p-3 font-mono font-bold text-[#b8952d]">{item.sku}</td>
                         <td className="p-3">
                           <div className="font-bold text-slate-900">{item.name}</div>
                           <div className="text-xs text-slate-500">{item.brand} ({item.category})</div>
@@ -1551,7 +1547,6 @@ export default function App() {
               </table>
             </div>
 
-            {/* Perhitungan Nominal & Rincian Termin Terpilih */}
             {(() => {
               const grandTotal = printItems.reduce((sum, item) => sum + ((Number(item.stock) || 1) * (Number(item.price) || 0)), 0);
               const dp = Number(invoiceDetails.downPayment) || 0;
@@ -1559,7 +1554,6 @@ export default function App() {
               const remainingBalance = Math.max(0, grandTotal - dp);
               const monthlyInstallment = Math.round(remainingBalance / tenor);
 
-              // Tentukan nominal tagihan untuk invoice yang sedang aktif dicetak
               let currentTermAmount = grandTotal;
               let currentDueDate = todayDate;
 
@@ -1576,29 +1570,27 @@ export default function App() {
               return (
                 <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-6 rounded-xl border border-slate-200">
                   <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Informasi Rekening Pembayaran</h4>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Bank Account Information</h4>
                     <div className="text-sm text-slate-700 space-y-1">
-                      <p><span className="font-bold">Bank BCA:</span> 002-174-6753 (a.n. Elis Rosalina Rais)</p>
-                      <p><span className="font-bold">Bank BNI:</span> 203-1986-489 (a.n. Adityas Shafrani)</p>
-                      <p className="text-xs text-slate-500 mt-2">Harap sertakan bukti transfer setelah pembayaran dilakukan.</p>
-                      <p className="text-xs text-slate-500 mt-2">Wajib bayar tepat pada waktu yang sudah ditentukan.</p>
-                
+                      <p><span className="font-bold">BCA Bank:</span> 5425-XXXX-XX (a.n. Elrosamoda)</p>
+                      <p><span className="font-bold">Mandiri Bank:</span> 1270-XXXX-XX (a.n. Elrosamoda)</p>
+                      <p className="text-xs text-slate-500 mt-2">Please attach transfer proof after payment is made.</p>
                     </div>
 
                     {paymentType === 'instalment' && (
                       <div className="mt-4 pt-4 border-t border-slate-200">
-                        <p className="text-xs font-bold uppercase text-slate-600 mb-2">Jadwal Seluruh Cicilan:</p>
+                        <p className="text-xs font-bold uppercase text-slate-600 mb-2">Instalment Schedule:</p>
                         <div className="space-y-1 text-xs text-slate-700">
-                          <div className={`flex justify-between p-1.5 rounded ${selectedTermIndex === 'DP' ? 'bg-indigo-100 font-bold text-indigo-900' : 'bg-white'}`}>
-                            <span>Uang Muka (DP):</span>
+                          <div className={`flex justify-between p-1.5 rounded ${selectedTermIndex === 'DP' ? 'bg-[#f9f6f0] font-bold text-[#b8952d]' : 'bg-white'}`}>
+                            <span>Down Payment (DP):</span>
                             <span>{formatRupiah(dp)}</span>
                           </div>
                           {Array.from({ length: tenor }).map((_, idx) => {
                             const dueD = addMonthsToDateString(invoiceDetails.dueDateFirst, idx);
                             const isSelected = selectedTermIndex === idx;
                             return (
-                              <div key={idx} className={`flex justify-between p-1.5 rounded ${isSelected ? 'bg-indigo-100 font-bold text-indigo-900' : 'bg-white'}`}>
-                                <span>Cicilan ke-{idx + 1} ({formatDateDisplay(dueD)}):</span>
+                              <div key={idx} className={`flex justify-between p-1.5 rounded ${isSelected ? 'bg-[#f9f6f0] font-bold text-[#b8952d]' : 'bg-white'}`}>
+                                <span>Instalment #{idx + 1} ({formatDateDisplay(dueD)}):</span>
                                 <span>{formatRupiah(monthlyInstallment)}</span>
                               </div>
                             );
@@ -1611,32 +1603,32 @@ export default function App() {
                   <div>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between text-slate-600">
-                        <span>Total Belanja Keseluruhan:</span>
+                        <span>Total Overall Purchase:</span>
                         <span className="font-bold text-slate-900">{formatRupiah(grandTotal)}</span>
                       </div>
 
                       {paymentType === 'instalment' && (
                         <>
                           <div className="flex justify-between text-slate-600">
-                            <span>Total Uang Muka (DP):</span>
+                            <span>Down Payment (DP) Paid:</span>
                             <span className="font-medium text-slate-700">{formatRupiah(dp)}</span>
                           </div>
                           <div className="flex justify-between text-slate-600 pb-2 border-b border-slate-200">
-                            <span>Sisa Pokok Hutang:</span>
+                            <span>Remaining Balance:</span>
                             <span className="font-medium text-slate-700">{formatRupiah(remainingBalance)}</span>
                           </div>
                         </>
                       )}
 
-                      <div className="bg-indigo-50 p-4 rounded-xl mt-2 border border-indigo-200 space-y-1">
-                        <p className="text-xs font-bold uppercase text-indigo-700">Tagihan Invoice Ini:</p>
-                        <div className="flex justify-between items-center text-base font-black text-indigo-900">
-                          <span>{paymentType === 'full' ? 'Nominal Lunas:' : (selectedTermIndex === 'DP' ? 'Nominal DP:' : `Nominal Cicilan ke-${selectedTermIndex + 1}:`)}</span>
-                          <span className="text-lg text-indigo-600">{formatRupiah(currentTermAmount)}</span>
+                      <div className="bg-slate-900 p-4 rounded-xl mt-2 border border-slate-800 space-y-1">
+                        <p className="text-xs font-bold uppercase text-slate-400">Current Term Due Amount:</p>
+                        <div className="flex justify-between items-center text-base font-black text-white">
+                          <span>{paymentType === 'full' ? 'Paid Amount:' : (selectedTermIndex === 'DP' ? 'DP Amount:' : `Instalment #${selectedTermIndex + 1} Amount:`)}</span>
+                          <span className="text-lg text-[#d4af37]">{formatRupiah(currentTermAmount)}</span>
                         </div>
                         {paymentType === 'instalment' && (
-                          <p className="text-xs font-semibold text-red-600 pt-1">
-                            • Jatuh Tempo Termin Ini: {formatDateDisplay(currentDueDate)}
+                          <p className="text-xs font-semibold text-red-400 pt-1">
+                            • Due Date: {formatDateDisplay(currentDueDate)}
                           </p>
                         )}
                       </div>
@@ -1646,18 +1638,17 @@ export default function App() {
               );
             })()}
 
-            {/* Foto Lampiran */}
             <div className="mb-12">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 mb-4 border-b-2 border-slate-200 pb-2">Photo & Notes</h3>
               {attachmentImages.length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {attachmentImages.map((imgSrc, idx) => (
                     <div key={idx} className="border border-slate-200 rounded-lg p-2 flex items-center justify-center bg-slate-50 relative group">
-                      <img src={imgSrc} alt={`Bukti ${idx+1}`} className="max-h-48 object-contain rounded" />
+                      <img src={imgSrc} alt={`Attachment ${idx+1}`} className="max-h-48 object-contain rounded" />
                       <button 
                         onClick={() => setAttachmentImages(prev => prev.filter((_, i) => i !== idx))}
                         className="print:hidden absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                        title="Hapus Foto"
+                        title="Delete Photo"
                       >
                         <X size={14} />
                       </button>
@@ -1666,21 +1657,20 @@ export default function App() {
                 </div>
               ) : (
                 <div className="w-full h-24 border-2 border-dashed border-slate-300 rounded-xl flex items-center justify-center bg-gray-50 text-slate-400 print:border-solid print:h-32">
-                  <span className="print:hidden">Klik 'Upload Foto Bukti' di atas untuk melampirkan foto nota/transfer.</span>
+                  <span className="print:hidden">Click 'Upload Photos' above to attach receipt or transfer proof.</span>
                   <span className="hidden print:block text-slate-300">(Receipt / Transfer Proof Area)</span>
                 </div>
               )}
             </div>
 
-            {/* Kolom Tanda Tangan */}
             <div className="grid grid-cols-2 gap-8 mt-16 pt-8 border-t border-slate-200 page-break-inside-avoid">
               <SignaturePad 
                 title="Store Authorized" 
-                subtitle="Elrosamoda Store" 
+                subtitle="Rosamoda Store" 
               />
               <SignaturePad 
-                title="Customer / Pembeli" 
-                subtitle={invoiceDetails.buyerName || 'Nama Pembeli'} 
+                title="Customer / Buyer" 
+                subtitle={invoiceDetails.buyerName || 'Customer Name'} 
                 subtext={invoiceDetails.buyerPhone || ''}
               />
             </div>
